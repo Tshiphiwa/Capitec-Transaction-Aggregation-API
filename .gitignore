@@ -1,0 +1,137 @@
+# See https://aka.ms/dotnet-gitignore
+# User-specific file to exclude. More info: https://git-scm.com/docs/gitignore#dot-user-content
+*.user
+
+# User-specific global global ignore file. More info: https://git-scm.com/docs/gitignore#global-gitignore
+*.sln.globalstate
+
+# Release settings configuration file
+*.config.release
+
+# User-specific settings file
+*.config.user
+
+# Release profiles
+**/Properties/launchSettings.json
+
+# NuGet packages
+**/.nuget/
+
+# Packages directory
+!.nuget/
+
+# NuGet's global packages folder
+**/packages/
+
+# Mono's auto-generated GAC assembly listing
+*.gac
+
+# Binary files
+*.exe
+*.dll
+
+# Reference assemblies
+*.pdb
+
+# MSTest test Results
+[Tt]est[Rr]esult*/
+
+# Visual Studio file lock
+*.vslis
+
+# Backup files
+*.orig
+
+# Build artifacts
+/bin
+/obj
+
+# Roslyn analysis cache
+*.roslyn.cache
+
+# OpenCover UI output files
+*.OpenCover
+
+# dotcover report files
+*.dotcover
+
+# Explorer
+Thumbs.db
+
+# SQL Server Compact 3.5
+*.sdf
+
+# Entity Framework
+EntityFramework/classes.tt
+
+# Drupal
+*.info
+
+# Package Manager
+nuget.packages
+
+# Telerik JustDecompile
+Telerik.JustDecompile
+
+# Octopus Deploy
+Octopus*.txt
+
+# Machine specific things
+*.machine
+
+# IIS
+IIS_Logs
+
+# SQL
+*.mdl
+*.gdm
+
+# Test results
+TEST-*
+
+# Backup files from hg merge
+*.orig
+
+# File system specific
+.DS_Store
+Thumbs.db
+*.rpt
+
+# Log files
+*.log
+
+# Package restore
+**/packages/
+**/.nuget/
+
+# Entity Framework
+EntityFramework/classes.tt
+
+# Specific to .NET
+.ReSharper*/
+
+# SpecFlow
+SpecRun.DotSettings
+
+# NuGet cache
+**/.nuget/
+
+# DotNet Coverage
+*.Coverage
+*.Coverlet
+
+# JustMock
+JustMock*
+
+# OpenCover
+*.Coverage
+
+# Unity3d
+*.pidb
+*.unityproj
+
+# Visual Studio Code
+.vscode/
+
+# Git
+.git/

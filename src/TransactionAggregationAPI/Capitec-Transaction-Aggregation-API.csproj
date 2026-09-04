@@ -18,7 +18,6 @@
 
     <ItemGroup>
         <Folder Include="Controllers\"/>
-        <Folder Include="Infrastructure\"/>
         <Folder Include="Middleware\"/>
         <Folder Include="MockSources\"/>
         <Folder Include="Services\"/>

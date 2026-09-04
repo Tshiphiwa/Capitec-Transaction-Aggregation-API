@@ -10,12 +10,14 @@ public class PagedResultDto<T> where T : class
     public bool HasNextPage => Page < TotalPages;
     public bool HasPreviousPage => Page > 1;
 
-    public static PagedResultDto<T> Create(List<T> items, int totalCount, int page, int pageSize) =>
-        new()
+    public static PagedResultDto<T> Create(List<T> items, int totalCount, int page, int pageSize)
+    {
+        return new PagedResultDto<T>
         {
             Items = items,
             TotalCount = totalCount,
             Page = page,
-            PageSize = pageSize,
+            PageSize = pageSize
         };
+    }
 }

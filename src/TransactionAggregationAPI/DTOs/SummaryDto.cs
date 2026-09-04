@@ -17,12 +17,13 @@ public class AggregatedCategoryDto
 {
     public string Category { get; set; } = string.Empty;
     public decimal TotalAmount { get; set; }
-    public int  TransactionCount { get; set; }
+    public int TransactionCount { get; set; }
     public decimal AverageTransactionAmount { get; set; }
     public decimal PercentageOfTotalSpend { get; set; }
     public decimal LargestTransaction { get; set; }
     public DateTime LastTransactionDate { get; set; }
 }
+
 public class AggregatedTransactionDto
 {
     public List<AggregatedCategoryDto> Categories { get; set; } = new();

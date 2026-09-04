@@ -1,6 +1,3 @@
-using System.Transactions;
-using Capitec_Transaction_Aggregation_API.Models;
-
 namespace Capitec_Transaction_Aggregation_API.DTOs;
 
 public class TransactionDto

@@ -135,3 +135,4 @@ JustMock*
 
 # Git
 .git/
+.idea/.idea.TransactionAggregationAPI/.idea/

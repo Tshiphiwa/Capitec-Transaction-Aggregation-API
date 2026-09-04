@@ -13,7 +13,7 @@ using System.Reflection;
 [assembly: System.Reflection.AssemblyCompanyAttribute("TransactionAggregationAPI.Tests")]
 [assembly: System.Reflection.AssemblyConfigurationAttribute("Debug")]
 [assembly: System.Reflection.AssemblyFileVersionAttribute("1.0.0.0")]
-[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+a4447b2bb1227978ec4f5a65b4bec65c306c4234")]
+[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+ff0acb5d8d33c010f4472119248f047e2233fa85")]
 [assembly: System.Reflection.AssemblyProductAttribute("TransactionAggregationAPI.Tests")]
 [assembly: System.Reflection.AssemblyTitleAttribute("TransactionAggregationAPI.Tests")]
 [assembly: System.Reflection.AssemblyVersionAttribute("1.0.0.0")]

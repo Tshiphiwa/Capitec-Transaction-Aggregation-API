@@ -36,7 +36,16 @@ public class MccCategoryMap
         { "4900", "Electricity" },
 
         { "5611", "Clothing & Shoes" }, { "5621", "Clothing & Shoes" }, { "5631", "Clothing & Shoes" },
-        { "5661", "Clothing & Shoes" }
-
+        { "5661", "Clothing & Shoes" },
+        
+        // Will use these for the ATM withdrawals
+        {"6010", "Cash"}, {"6011", "Cash"}, {"6012", "Cash"},
     };
-};
+
+    public static string? GetCategory(string? mccCode)
+    {
+        if (string.IsNullOrWhiteSpace(mccCode))
+            return null;
+        return Map.TryGetValue(mccCode.Trim(), out var category) ? category : null;
+    }
+}

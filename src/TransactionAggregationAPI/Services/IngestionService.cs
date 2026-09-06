@@ -1,9 +1,8 @@
+using System.Text.Json;
 using Capitec_Transaction_Aggregation_API.Infrastructure;
 using Capitec_Transaction_Aggregation_API.Models;
-using Capitec_Transaction_Aggregation_API.DTOs;
-using Microsoft.EntityFrameworkCore;
-using System.Text.Json;
 using Capitec_Transaction_Aggregation_API.MockSources;
+using Microsoft.EntityFrameworkCore;
 
 namespace Capitec_Transaction_Aggregation_API.Services;
 
@@ -52,12 +51,16 @@ public class IngestionService
                 });
             }
         }
+
+        await _dbContext.SaveChangesAsync();
+
+        _logger.LogInformation("Ingestion completed. Total ingested: {TotalIngested}, Total skipped: {TotalSkipped}", result.TotalIngested, result.TotalSkipped);
+
         return result;
     }
 
-    public async Task<SourceIngestionResult> IngestSourceAsync(TransactionSource source)
+        public async Task<SourceIngestionResult> IngestSourceAsync(TransactionSource source)
     {
-
         _logger.LogInformation("Starting ingestion for source {SourceCode} at {BaseUrl}", source.Code, source.BaseUrl);
 
         var client = _httpClientFactory.CreateClient();
@@ -65,50 +68,47 @@ public class IngestionService
         response.EnsureSuccessStatusCode();
 
         var json = await response.Content.ReadAsStringAsync();
-        var rawTransactions = JsonSerializer.Deserialize<List<TransactionDto>>(json,
-            new JsonSerializerOptions { PropertyNameCaseInsensitive = true }
-            ) ?? new List<TransactionDto>();
+        var rawTransactions = JsonSerializer.Deserialize<List<RawTransactionDto>>(json,
+            new JsonSerializerOptions { PropertyNameCaseInsensitive = true }) ?? new List<RawTransactionDto>();
 
         var ingested = 0;
         var skipped = 0;
 
         foreach (var raw in rawTransactions)
         {
-                // Check for duplicates based on Reference and SourceId
-                var exists = await _dbContext.Transactions.AnyAsync(t => t.Reference == raw.Reference && t.SourceId == source.Id);
-                
-                if (exists)
-                {
-                    skipped++;
-                    continue;
-                }
-         
-                _dbContext.Transactions.Add(MapToTransaction(raw, source));
-                ingested++;
+            var exists = await _dbContext.Transactions.AnyAsync(t => 
+                t.Reference == raw.Reference && t.SourceId == source.Id);
 
-            if (ingested > 0)
+            if (exists)
             {
-                await _dbContext.SaveChangesAsync();
+                skipped++;
+                continue;
             }
 
-            _logger.LogInformation("Ingested {IngestedCount} transactions for source {SourceCode}", ingested, source.Code);
-
-            return new SourceIngestionResult
-            {
-                SourceCode = source.Code,
-                SourceName = source.Name,
-                Success = true,
-                IngestedCount = ingested,
-                SkippedCount = skipped
-            };
+            _dbContext.Transactions.Add(MapToTransaction(raw, source));
+            ingested++;
         }
+
+        if (ingested > 0)
+               await _dbContext.SaveChangesAsync();
+
+        _logger.LogInformation("Ingested {IngestedCount} transactions for source {SourceCode}", ingested, source.Code);
+
+        return new SourceIngestionResult
+        {
+            SourceCode = source.Code,
+            SourceName = source.Name,
+            Success = true,
+            IngestedCount = ingested,
+            SkippedCount = skipped
+        };
     }
 
     private Transaction MapToTransaction(RawTransactionDto raw, TransactionSource source)
     {
         var (category, categorySource) = _categorizationService.Categorize(raw.MccCode, raw.Description);
 
-        var transaction = new Transaction
+        return new Transaction
         {
             Id = Guid.NewGuid(),
             Amount = raw.Amount,
@@ -117,53 +117,55 @@ public class IngestionService
             MerchantName = raw.MerchantName,
             MccCode = raw.MccCode,
             Category = category,
-            CategorySource = categorySource,
+            CategorySource = string.IsNullOrWhiteSpace(raw.MccCode) ? CategorySource.Keyword : CategorySource.MccCode,
             TransactionType = MapTransactionType(raw.TransactionType),
-            Direction = raw.Direction,
+            Direction = MapTransactionDirection(raw.Direction),
             TransactionDate = raw.TransactionDate,
             Reference = raw.Reference,
             FromAccount = raw.FromAccount,
             ToAccount = raw.ToAccount,
             SourceId = source.Id,
+            Source = source,
             CreatedDate = DateTime.UtcNow,
             LastUpdatedDate = DateTime.UtcNow
         };
     }
 
     private static TransactionType MapTransactionType(string rawType) =>
-        rawType?.ToLowerInvariant() switch
+        rawType.ToLowerInvariant() switch
         {
             "CARD_SWIPE" => TransactionType.CardSwipe,
             "EFT_CREDIT" => TransactionType.EftTransfer,
             "EFT_DEBIT" => TransactionType.EftTransfer,
+            "WALLET_PAYMENT" => TransactionType.CardSwipe,
+            "WALLET_TRANSFER" => TransactionType.EftTransfer,
+            "EFT_TRANSFER" => TransactionType.EftTransfer,
             "SALARY_CREDIT" => TransactionType.SalaryCredit,
             "ATM_WITHDRAWAL" => TransactionType.AtmWithdrawal,
-            "WALLET_PAYMENT" => TransactionType.EftTransfer,
-            "WALLET_TRANSFER" => TransactionType.EftTransfer,
-            "WALLET_TOPUP" => TransactionType.EftTransfer,
             _ => TransactionType.EftTransfer
         };
 
-        private static TransactionDirection MapTransactionDirection(string rawDirection) =>
-        rawDirection?.ToLowerInvariant() switch{
+    private static TransactionDirection MapTransactionDirection(string rawDirection) =>
+        rawDirection?.ToLowerInvariant() switch
+        {
             "CREDIT" => TransactionDirection.Credit,
             _ => TransactionDirection.Debit
         };
 
-        public class IngestionResultDto
-        {
-            public int TotalIngested { get; set; }
-            public int TotalSkipped { get; set; }
-            public List<SourceIngestionResult> SourceResults { get; set; } = new();
-        }
+    public class IngestionResultDto
+    {
+        public int TotalIngested { get; set; }
+        public int TotalSkipped { get; set; }
+        public List<SourceIngestionResult> SourceResults { get; set; } = new();
+    }
 
-        public class SourceIngestionResult
-        {
-            public string SourceCode { get; set; } = string.Empty;
-            public string SourceName { get; set; } = string.Empty;
-            public bool Success { get; set; }
-            public int IngestedCount { get; set; }
-            public int SkippedCount { get; set; }
-            public string ErrorMessage { get; set; } = string.Empty;
-        }
+    public class SourceIngestionResult
+    {
+        public string SourceCode { get; set; } = string.Empty;
+        public string SourceName { get; set; } = string.Empty;
+        public bool Success { get; set; }
+        public int IngestedCount { get; set; }
+        public int SkippedCount { get; set; }
+        public string ErrorMessage { get; set; } = string.Empty;
+    }
 }

@@ -24,8 +24,6 @@ public class AuthService
 
     public async Task<LoginResponseDto> LoginAsync(LoginRequestDto request)
     {
-        ArgumentNullException.ThrowIfNull(request);
-
         if (string.IsNullOrWhiteSpace(request.Username) || string.IsNullOrWhiteSpace(request.Password))
         {
             throw new ArgumentException("Username and password are required.");
@@ -68,7 +66,7 @@ public class AuthService
     {
         var jwtKey = _configuration["Jwt:Key"] ?? throw new InvalidOperationException("JWT key is not configured.");
         var issuer = _configuration["Jwt:Issuer"] ?? throw new InvalidOperationException("JWT issuer is not configured.");
-        var audience = _configuration["Jwt:Audience"] ?? throw new InvalidOperationException("JWT audience is not configured.");
+        var audience = _configuration["Jwt:Audience"] ?? issuer;
         var expiresAt = DateTime.UtcNow.AddHours(8);
 
         var securityKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwtKey));
@@ -84,11 +82,11 @@ public class AuthService
 
         var token = new JwtSecurityToken(
             issuer: issuer,
-            audience: issuer,
+            audience: audience,
             claims: claims,
             expires: expiresAt,
             signingCredentials: credentials);
 
-            return new JwtSecurityTokenHandler().WriteToken(token);
+        return new JwtSecurityTokenHandler().WriteToken(token);
     }
 }

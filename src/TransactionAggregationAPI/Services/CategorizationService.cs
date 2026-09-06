@@ -47,4 +47,9 @@ public class CategorizationService
 
         return ("Uncategorised", CategorySource.Uncategorised);
     }
+
+    public string CategorizeTransaction(Transaction transaction)
+    {
+        return Categorize(transaction.MccCode, transaction.Description).Category;
+    }
 }

@@ -3,6 +3,7 @@ using Capitec_Transaction_Aggregation_API.Infrastructure;
 using Capitec_Transaction_Aggregation_API.Models;
 using Capitec_Transaction_Aggregation_API.MockSources;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Logging.Abstractions;
 
 namespace Capitec_Transaction_Aggregation_API.Services;
 
@@ -13,12 +14,16 @@ public class IngestionService
     private readonly ILogger<IngestionService> _logger;
     private readonly IHttpClientFactory _httpClientFactory;
 
-    public IngestionService(AppDbContext dbContext, CategorizationService categorizationService, ILogger<IngestionService> logger, IHttpClientFactory httpClientFactory)
+    public IngestionService(
+        AppDbContext dbContext,
+        CategorizationService categorizationService,
+        ILogger<IngestionService>? logger = null,
+        IHttpClientFactory? httpClientFactory = null)
     {
         _dbContext = dbContext;
         _categorizationService = categorizationService;
-        _logger = logger;
-        _httpClientFactory = httpClientFactory;
+        _logger = logger ?? NullLogger<IngestionService>.Instance;
+        _httpClientFactory = httpClientFactory ?? new NullHttpClientFactory();
     }
 
     public async Task<IngestionResultDto> IngestAllSourcesAsync()
@@ -59,7 +64,46 @@ public class IngestionService
         return result;
     }
 
-        public async Task<SourceIngestionResult> IngestSourceAsync(TransactionSource source)
+    public async Task<int> ImportTransactionsAsync(IEnumerable<Transaction> transactions, Guid sourceId)
+    {
+        var imported = 0;
+
+        foreach (var transaction in transactions)
+        {
+            var exists = await _dbContext.Transactions.AnyAsync(t => t.Reference == transaction.Reference && t.SourceId == sourceId);
+            if (exists)
+            {
+                continue;
+            }
+
+            transaction.SourceId = sourceId;
+            transaction.Source ??= await _dbContext.TransactionSources.FindAsync(sourceId);
+
+            if (string.IsNullOrWhiteSpace(transaction.Category) || string.Equals(transaction.Category, "Uncategorised", StringComparison.OrdinalIgnoreCase))
+            {
+                transaction.Category = _categorizationService.CategorizeTransaction(transaction);
+            }
+
+            if (transaction.CategorySource == default || transaction.CategorySource == CategorySource.Uncategorised)
+            {
+                transaction.CategorySource = string.IsNullOrWhiteSpace(transaction.MccCode)
+                    ? CategorySource.Keyword
+                    : CategorySource.MccCode;
+            }
+
+            _dbContext.Transactions.Add(transaction);
+            imported++;
+        }
+
+        if (imported > 0)
+        {
+            await _dbContext.SaveChangesAsync();
+        }
+
+        return imported;
+    }
+
+    public async Task<SourceIngestionResult> IngestSourceAsync(TransactionSource source)
     {
         _logger.LogInformation("Starting ingestion for source {SourceCode} at {BaseUrl}", source.Code, source.BaseUrl);
 
@@ -167,5 +211,13 @@ public class IngestionService
         public int IngestedCount { get; set; }
         public int SkippedCount { get; set; }
         public string ErrorMessage { get; set; } = string.Empty;
+    }
+
+    private sealed class NullHttpClientFactory : IHttpClientFactory
+    {
+        public HttpClient CreateClient(string name)
+        {
+            return new HttpClient();
+        }
     }
 }

@@ -1,3 +1,0 @@
-﻿<Project>
-  <Import Project="../buildMultiTargeting/Capitec-Transaction-Aggregation-API.props" />
-</Project>

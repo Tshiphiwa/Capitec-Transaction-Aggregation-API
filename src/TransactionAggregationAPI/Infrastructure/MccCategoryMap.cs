@@ -27,13 +27,7 @@ public class MccCategoryMap
 
         { "4730", "Fuel" },
 
-        { "5812", "Takeaways" }, { "5813", "Takeaways" },
-
         { "5420", "Alcohol" },
-
-        { "5812", "Restaurants" }, { "5813", "Restaurants" }, { "5814", "Restaurants" },
-
-        { "4900", "Electricity" },
 
         { "5611", "Clothing & Shoes" }, { "5621", "Clothing & Shoes" }, { "5631", "Clothing & Shoes" },
         { "5661", "Clothing & Shoes" },

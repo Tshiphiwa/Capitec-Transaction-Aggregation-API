@@ -2,6 +2,7 @@ using Capitec_Transaction_Aggregation_API.DTOs;
 using Capitec_Transaction_Aggregation_API.Infrastructure;
 using Capitec_Transaction_Aggregation_API.Models;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Logging.Abstractions;
 
 namespace Capitec_Transaction_Aggregation_API.Services;
 
@@ -11,10 +12,10 @@ public class TransactionService
     private readonly ILogger<TransactionService> _logger;
     private const int MaxPageSize = 100;
 
-    public TransactionService(AppDbContext dbContext, ILogger<TransactionService> logger)
+    public TransactionService(AppDbContext dbContext, ILogger<TransactionService>? logger = null)
     {
         _dbContext = dbContext;
-        _logger = logger;
+        _logger = logger ?? NullLogger<TransactionService>.Instance;
     }
 
     public async Task<PagedResultDto<TransactionDto>> GetTransactionsAsync(TransactionFilterDto filter)

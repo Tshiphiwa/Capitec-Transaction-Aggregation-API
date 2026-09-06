@@ -45,6 +45,12 @@
 # Build artifacts
 /bin
 /obj
+**/bin/
+**/obj/
+
+# IDE files
+.idea/
+.vscode/
 
 # Roslyn analysis cache
 *.roslyn.cache

@@ -72,6 +72,9 @@ try
     builder.Services.AddValidatorsFromAssemblyContaining<Program>();
 
     builder.Services.AddScoped<CategorizationService>();
+    builder.Services.AddScoped<ICardTransactionsService, CardTransactionsService>();
+    builder.Services.AddScoped<IEftTransactionsService, EftTransactionsService>();
+    builder.Services.AddScoped<IWalletTransactionsService, WalletTransactionsService>();
     builder.Services.AddScoped<IngestionService>();
     builder.Services.AddScoped<TransactionService>();
     builder.Services.AddScoped<AuthService>();

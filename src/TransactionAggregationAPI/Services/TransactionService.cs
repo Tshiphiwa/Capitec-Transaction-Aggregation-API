@@ -68,7 +68,8 @@ public class TransactionService : ITransactionService
             return new SummaryDto
             {
                 FromDate = filter.From,
-                ToDate = filter.To
+                ToDate = filter.To,
+                TopSpendingCategory = "None"
             };
         }
 
@@ -148,6 +149,11 @@ public class TransactionService : ITransactionService
 
     public async Task<TransactionDto> UpdateCategoryAsync(Guid transactionId, string newCategory, UserRole userRole)
     {
+        if (string.IsNullOrWhiteSpace(newCategory))
+        {
+            throw new ArgumentException("New category is required.", nameof(newCategory));
+        }
+
         if (userRole != UserRole.Admin)
         {
             throw new UnauthorizedAccessException("Only Admin users can update transaction categories.");

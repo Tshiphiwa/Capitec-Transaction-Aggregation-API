@@ -36,24 +36,34 @@ try
                 retainedFileCountLimit: 14,
                 outputTemplate: "[{Timestamp:yyyy-MM-dd HH:mm:ss} {Level:u3}] CorrelationId={CorrelationId} {Message:lj}{NewLine}{Exception}"));
 
+    var isTestEnvironment = builder.Environment.IsEnvironment("Testing");
     var defaultConnection = builder.Configuration.GetConnectionString("DefaultConnection");
-    if (string.IsNullOrWhiteSpace(defaultConnection))
+
+    if (!isTestEnvironment && string.IsNullOrWhiteSpace(defaultConnection))
     {
         throw new InvalidOperationException("Database connection string 'DefaultConnection' is not configured.");
     }
 
-    builder.Services.AddDbContext<AppDbContext>(options =>
-        options.UseNpgsql(
-            defaultConnection,
-            npgsqlOptions => npgsqlOptions.EnableRetryOnFailure(
-                maxRetryCount: 5,
-                maxRetryDelay: TimeSpan.FromSeconds(5),
-                errorCodesToAdd: null)));
+    if (isTestEnvironment)
+    {
+        builder.Services.AddDbContext<AppDbContext>(options =>
+            options.UseInMemoryDatabase("TestDb"));
+    }
+    else
+    {
+        builder.Services.AddDbContext<AppDbContext>(options =>
+            options.UseNpgsql(
+                defaultConnection,
+                npgsqlOptions => npgsqlOptions.EnableRetryOnFailure(
+                    maxRetryCount: 5,
+                    maxRetryDelay: TimeSpan.FromSeconds(5),
+                    errorCodesToAdd: null)));
+    }
 
     builder.Services.AddHealthChecks()
         .AddCheck<DatabaseHealthCheck>("database");
 
-    var jwtKey = builder.Configuration["Jwt:Key"] ?? throw new InvalidOperationException("JWT key is not configured.");
+    var jwtKey = builder.Configuration["Jwt:Key"] ?? (isTestEnvironment ? "ThisIsATestJwtKeyForIntegrationTesting123!" : throw new InvalidOperationException("JWT key is not configured."));
     var jwtIssuer = builder.Configuration["Jwt:Issuer"] ?? "CapitecTransactionAPI";
     var jwtAudience = builder.Configuration["Jwt:Audience"] ?? "CapitecTransactionAPIClient";
 
@@ -127,7 +137,7 @@ try
 
     var app = builder.Build();
 
-    if (app.Environment.IsDevelopment() || app.Environment.IsEnvironment("Local"))
+    if (!app.Environment.IsEnvironment("Testing") && (app.Environment.IsDevelopment() || app.Environment.IsEnvironment("Local")))
     {
         using (var scope = app.Services.CreateScope())
         {

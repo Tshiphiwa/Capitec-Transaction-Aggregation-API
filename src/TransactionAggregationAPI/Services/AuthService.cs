@@ -25,6 +25,8 @@ public class AuthService : IAuthService
 
     public async Task<LoginResponseDto> LoginAsync(LoginRequestDto request)
     {
+        ArgumentNullException.ThrowIfNull(request);
+
         if (string.IsNullOrWhiteSpace(request.Username) || string.IsNullOrWhiteSpace(request.Password))
         {
             throw new ArgumentException("Username and password are required.");

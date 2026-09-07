@@ -1,5 +1,5 @@
 using Capitec_Transaction_Aggregation_API.DTOs;
-using Capitec_Transaction_Aggregation_API.Services;
+using Capitec_Transaction_Aggregation_API.Services.Interfaces;
 using Microsoft.AspNetCore.Mvc;
 
 namespace Capitec_Transaction_Aggregation_API.Controllers;
@@ -8,9 +8,9 @@ namespace Capitec_Transaction_Aggregation_API.Controllers;
 [Route("api/auth")]
 public class AuthController : ControllerBase
 {
-    private readonly AuthService _authService;
+    private readonly IAuthService _authService;
 
-    public AuthController(AuthService authService)
+    public AuthController(IAuthService authService)
     {
         _authService = authService;
     }

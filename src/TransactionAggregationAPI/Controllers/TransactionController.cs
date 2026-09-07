@@ -1,7 +1,7 @@
 using System.Security.Claims;
 using Capitec_Transaction_Aggregation_API.DTOs;
 using Capitec_Transaction_Aggregation_API.Models;
-using Capitec_Transaction_Aggregation_API.Services;
+using Capitec_Transaction_Aggregation_API.Services.Interfaces;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
@@ -12,10 +12,10 @@ namespace Capitec_Transaction_Aggregation_API.Controllers;
 [Authorize]
 public class TransactionController : ControllerBase
 {
-    private readonly TransactionService _transactionService;
-    private readonly IngestionService _ingestionService;
+    private readonly ITransactionService _transactionService;
+    private readonly IIngestionService _ingestionService;
 
-    public TransactionController(TransactionService transactionService, IngestionService ingestionService)
+    public TransactionController(ITransactionService transactionService, IIngestionService ingestionService)
     {
         _transactionService = transactionService;
         _ingestionService = ingestionService;

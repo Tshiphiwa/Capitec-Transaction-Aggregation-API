@@ -1,4 +1,4 @@
-using Capitec_Transaction_Aggregation_API.Services;
+using Capitec_Transaction_Aggregation_API.Services.Interfaces;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
@@ -9,9 +9,9 @@ namespace Capitec_Transaction_Aggregation_API.Controllers;
 [Authorize]
 public class SourcesController : ControllerBase
 {
-    private readonly TransactionService _transactionService;
+    private readonly ITransactionService _transactionService;
 
-    public SourcesController(TransactionService transactionService)
+    public SourcesController(ITransactionService transactionService)
     {
         _transactionService = transactionService;
     }

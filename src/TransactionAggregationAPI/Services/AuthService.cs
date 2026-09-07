@@ -4,12 +4,13 @@ using System.Text;
 using Capitec_Transaction_Aggregation_API.DTOs;
 using Capitec_Transaction_Aggregation_API.Infrastructure;
 using Capitec_Transaction_Aggregation_API.Models;
+using Capitec_Transaction_Aggregation_API.Services.Interfaces;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 
 namespace Capitec_Transaction_Aggregation_API.Services;
 
-public class AuthService
+public class AuthService : IAuthService
 {
     private readonly AppDbContext _dbContext;
     private readonly IConfiguration _configuration;

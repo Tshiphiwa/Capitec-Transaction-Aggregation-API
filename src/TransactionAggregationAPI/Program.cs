@@ -4,6 +4,7 @@ using FluentValidation.AspNetCore;
 using Capitec_Transaction_Aggregation_API.Infrastructure;
 using Capitec_Transaction_Aggregation_API.Middleware;
 using Capitec_Transaction_Aggregation_API.Services;
+using Capitec_Transaction_Aggregation_API.Services.Interfaces;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
@@ -35,15 +36,26 @@ try
                 retainedFileCountLimit: 14,
                 outputTemplate: "[{Timestamp:yyyy-MM-dd HH:mm:ss} {Level:u3}] CorrelationId={CorrelationId} {Message:lj}{NewLine}{Exception}"));
 
+    var defaultConnection = builder.Configuration.GetConnectionString("DefaultConnection");
+    if (string.IsNullOrWhiteSpace(defaultConnection))
+    {
+        throw new InvalidOperationException("Database connection string 'DefaultConnection' is not configured.");
+    }
+
     builder.Services.AddDbContext<AppDbContext>(options =>
         options.UseNpgsql(
-            builder.Configuration.GetConnectionString("DefaultConnection"),
+            defaultConnection,
             npgsqlOptions => npgsqlOptions.EnableRetryOnFailure(
                 maxRetryCount: 5,
                 maxRetryDelay: TimeSpan.FromSeconds(5),
                 errorCodesToAdd: null)));
 
+    builder.Services.AddHealthChecks()
+        .AddCheck<DatabaseHealthCheck>("database");
+
     var jwtKey = builder.Configuration["Jwt:Key"] ?? throw new InvalidOperationException("JWT key is not configured.");
+    var jwtIssuer = builder.Configuration["Jwt:Issuer"] ?? "CapitecTransactionAPI";
+    var jwtAudience = builder.Configuration["Jwt:Audience"] ?? "CapitecTransactionAPIClient";
 
     builder.Services.AddAuthentication(options =>
     {
@@ -58,8 +70,8 @@ try
             ValidateAudience = true,
             ValidateLifetime = true,
             ValidateIssuerSigningKey = true,
-            ValidIssuer = builder.Configuration["Jwt:Issuer"],
-            ValidAudience = builder.Configuration["Jwt:Audience"],
+            ValidIssuer = jwtIssuer,
+            ValidAudience = jwtAudience,
             IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwtKey)),
             ClockSkew = TimeSpan.FromMinutes(1)
         };
@@ -71,13 +83,13 @@ try
     builder.Services.AddFluentValidationAutoValidation();
     builder.Services.AddValidatorsFromAssemblyContaining<Program>();
 
-    builder.Services.AddScoped<CategorizationService>();
+    builder.Services.AddScoped<ICategorizationService, CategorizationService>();
     builder.Services.AddScoped<ICardTransactionsService, CardTransactionsService>();
     builder.Services.AddScoped<IEftTransactionsService, EftTransactionsService>();
     builder.Services.AddScoped<IWalletTransactionsService, WalletTransactionsService>();
-    builder.Services.AddScoped<IngestionService>();
-    builder.Services.AddScoped<TransactionService>();
-    builder.Services.AddScoped<AuthService>();
+    builder.Services.AddScoped<IIngestionService, IngestionService>();
+    builder.Services.AddScoped<ITransactionService, TransactionService>();
+    builder.Services.AddScoped<IAuthService, AuthService>();
     builder.Services.AddScoped<DatabaseSeeder>();
 
     builder.Services.AddEndpointsApiExplorer();
@@ -142,6 +154,8 @@ try
     app.UseRouting();
     app.UseAuthentication();
     app.UseAuthorization();
+    app.MapHealthChecks("/health");
+    app.MapHealthChecks("/ready");
     app.MapControllers();
 
     Log.Information("Capitec Transaction Aggregation API started successfully.");

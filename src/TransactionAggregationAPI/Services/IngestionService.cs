@@ -2,21 +2,22 @@ using System.Text.Json;
 using Capitec_Transaction_Aggregation_API.Infrastructure;
 using Capitec_Transaction_Aggregation_API.Models;
 using Capitec_Transaction_Aggregation_API.DTOs;
+using Capitec_Transaction_Aggregation_API.Services.Interfaces;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging.Abstractions;
 
 namespace Capitec_Transaction_Aggregation_API.Services;
 
-public class IngestionService
+public class IngestionService : IIngestionService
 {
     private readonly AppDbContext _dbContext;
-    private readonly CategorizationService _categorizationService;
+    private readonly ICategorizationService _categorizationService;
     private readonly ILogger<IngestionService> _logger;
     private readonly IHttpClientFactory _httpClientFactory;
 
     public IngestionService(
         AppDbContext dbContext,
-        CategorizationService categorizationService,
+        ICategorizationService categorizationService,
         ILogger<IngestionService>? logger = null,
         IHttpClientFactory? httpClientFactory = null)
     {

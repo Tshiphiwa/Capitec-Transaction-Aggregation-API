@@ -1,12 +1,13 @@
 using Capitec_Transaction_Aggregation_API.DTOs;
 using Capitec_Transaction_Aggregation_API.Infrastructure;
 using Capitec_Transaction_Aggregation_API.Models;
+using Capitec_Transaction_Aggregation_API.Services.Interfaces;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging.Abstractions;
 
 namespace Capitec_Transaction_Aggregation_API.Services;
 
-public class TransactionService
+public class TransactionService : ITransactionService
 {
     private readonly AppDbContext _dbContext;
     private readonly ILogger<TransactionService> _logger;

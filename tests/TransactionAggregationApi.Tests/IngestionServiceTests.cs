@@ -18,7 +18,16 @@ public class IngestionServiceTests
         dbContext.TransactionSources.Add(source);
         await dbContext.SaveChangesAsync();
 
-        IIngestionService service = new IngestionService(dbContext, new CategorizationService());
+        IIngestionService service = new IngestionService(
+            dbContext,
+            new CategorizationService(),
+            new TransactionIngestionProcessor(
+                dbContext,
+                new CategorizationService(),
+                new TransactionSourceClient(new StubHttpClientFactory(""), NullLogger<TransactionSourceClient>.Instance),
+                new TransactionReferenceChecker(),
+                new TransactionMapper(),
+                NullLogger<TransactionIngestionProcessor>.Instance));
         var transactions = new[]
         {
             CreateTransaction(source, "seed-1", 99.99m, "Groceries")
@@ -44,8 +53,16 @@ public class IngestionServiceTests
         IIngestionService service = new IngestionService(
             dbContext,
             new CategorizationService(),
-            NullLogger<IngestionService>.Instance,
-            new StubHttpClientFactory("[{\"reference\":\"txn-1\",\"amount\":150.00,\"currency\":\"ZAR\",\"description\":\"Vodacom recharge\",\"mccCode\":\"9999\",\"transactionDate\":\"2024-01-01T12:00:00Z\",\"merchantName\":\"Vodacom\",\"transactionType\":\"CARD_SWIPE\",\"direction\":\"DEBIT\",\"fromAccount\":\"A\",\"toAccount\":\"B\"}]"));
+            new TransactionIngestionProcessor(
+                dbContext,
+                new CategorizationService(),
+                new TransactionSourceClient(new StubHttpClientFactory("[{\"reference\":\"txn-1\",\"amount\":150.00,\"currency\":\"ZAR\",\"description\":\"Vodacom recharge\",\"mccCode\":\"9999\",\"transactionDate\":\"2024-01-01T12:00:00Z\",\"merchantName\":\"Vodacom\",\"transactionType\":\"CARD_SWIPE\",\"direction\":\"DEBIT\",\"fromAccount\":\"A\",\"toAccount\":\"B\"}]"), NullLogger<TransactionSourceClient>.Instance),
+                new TransactionReferenceChecker(),
+                new TransactionMapper(),
+                NullLogger<TransactionIngestionProcessor>.Instance),
+            new TransactionReferenceChecker(),
+            new TransactionMapper(),
+            NullLogger<IngestionService>.Instance);
 
         // Act
         var result = await service.IngestSourceAsync(source);
@@ -69,8 +86,16 @@ public class IngestionServiceTests
         IIngestionService service = new IngestionService(
             dbContext,
             new CategorizationService(),
-            NullLogger<IngestionService>.Instance,
-            new StubHttpClientFactory(statusCode: System.Net.HttpStatusCode.InternalServerError));
+            new TransactionIngestionProcessor(
+                dbContext,
+                new CategorizationService(),
+                new TransactionSourceClient(new StubHttpClientFactory(statusCode: System.Net.HttpStatusCode.InternalServerError), NullLogger<TransactionSourceClient>.Instance),
+                new TransactionReferenceChecker(),
+                new TransactionMapper(),
+                NullLogger<TransactionIngestionProcessor>.Instance),
+            new TransactionReferenceChecker(),
+            new TransactionMapper(),
+            NullLogger<IngestionService>.Instance);
 
         // Act
         var act = async () => await service.IngestSourceAsync(source);
@@ -90,7 +115,16 @@ public class IngestionServiceTests
         dbContext.Transactions.Add(existing);
         await dbContext.SaveChangesAsync();
 
-        IIngestionService service = new IngestionService(dbContext, new CategorizationService());
+        IIngestionService service = new IngestionService(
+            dbContext,
+            new CategorizationService(),
+            new TransactionIngestionProcessor(
+                dbContext,
+                new CategorizationService(),
+                new TransactionSourceClient(new StubHttpClientFactory(""), NullLogger<TransactionSourceClient>.Instance),
+                new TransactionReferenceChecker(),
+                new TransactionMapper(),
+                NullLogger<TransactionIngestionProcessor>.Instance));
         var duplicate = CreateTransaction(source, "duplicate-ref", 99m, "Transport");
 
         // Act
@@ -113,8 +147,16 @@ public class IngestionServiceTests
         IIngestionService service = new IngestionService(
             dbContext,
             new CategorizationService(),
-            NullLogger<IngestionService>.Instance,
-            new StubHttpClientFactory("not-valid-json"));
+            new TransactionIngestionProcessor(
+                dbContext,
+                new CategorizationService(),
+                new TransactionSourceClient(new StubHttpClientFactory("not-valid-json"), NullLogger<TransactionSourceClient>.Instance),
+                new TransactionReferenceChecker(),
+                new TransactionMapper(),
+                NullLogger<TransactionIngestionProcessor>.Instance),
+            new TransactionReferenceChecker(),
+            new TransactionMapper(),
+            NullLogger<IngestionService>.Instance);
 
         // Act
         var act = async () => await service.IngestSourceAsync(source);
@@ -135,8 +177,16 @@ public class IngestionServiceTests
         IIngestionService service = new IngestionService(
             dbContext,
             new CategorizationService(),
-            NullLogger<IngestionService>.Instance,
-            new StubHttpClientFactory(throwOnRequest: true));
+            new TransactionIngestionProcessor(
+                dbContext,
+                new CategorizationService(),
+                new TransactionSourceClient(new StubHttpClientFactory(throwOnRequest: true), NullLogger<TransactionSourceClient>.Instance),
+                new TransactionReferenceChecker(),
+                new TransactionMapper(),
+                NullLogger<TransactionIngestionProcessor>.Instance),
+            new TransactionReferenceChecker(),
+            new TransactionMapper(),
+            NullLogger<IngestionService>.Instance);
 
         // Act
         var act = async () => await service.IngestSourceAsync(source);

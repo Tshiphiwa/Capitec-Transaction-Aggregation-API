@@ -1,6 +1,4 @@
-using System.Security.Claims;
 using Capitec_Transaction_Aggregation_API.DTOs;
-using Capitec_Transaction_Aggregation_API.Models;
 using Capitec_Transaction_Aggregation_API.Services.Interfaces;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -14,11 +12,16 @@ public class TransactionController : ControllerBase
 {
     private readonly ITransactionService _transactionService;
     private readonly IIngestionService _ingestionService;
+    private readonly IUserRoleAccessor _userRoleAccessor;
 
-    public TransactionController(ITransactionService transactionService, IIngestionService ingestionService)
+    public TransactionController(
+        ITransactionService transactionService,
+        IIngestionService ingestionService,
+        IUserRoleAccessor userRoleAccessor)
     {
         _transactionService = transactionService;
         _ingestionService = ingestionService;
+        _userRoleAccessor = userRoleAccessor;
     }
 
     [HttpGet]
@@ -35,7 +38,7 @@ public class TransactionController : ControllerBase
         return Ok(summary);
     }
 
- [HttpGet("aggregated")]
+    [HttpGet("aggregated")]
     public async Task<IActionResult> GetAggregated([FromQuery] TransactionFilterDto filter)
     {
         var result = await _transactionService.GetAggregatedTransactionsAsync(filter);
@@ -49,21 +52,17 @@ public class TransactionController : ControllerBase
         return Ok(transaction);
     }
 
-    [Authorize(Roles = "Admin")]
+    [Authorize(Policy = "AdminOnly")]
     [HttpPatch("{transactionId:guid}/category")]
     public async Task<IActionResult> UpdateCategory(Guid transactionId, [FromBody] UpdateCategoryDto request)
     {
-        var roleString = User.FindFirstValue(ClaimTypes.Role) ?? String.Empty;
-        var userRole = Enum.TryParse<UserRole>(roleString, out var role)
-            ? role
-            : UserRole.Analyst;
-
+        var userRole = _userRoleAccessor.GetCurrentUserRole();
         var result = await _transactionService.UpdateCategoryAsync(transactionId, request.Category, userRole);
         return Ok(result);
     }
 
     [HttpPost("ingest")]
-    [Authorize(Roles = "Admin")]
+    [Authorize(Policy = "AdminOnly")]
     public async Task<IActionResult> IngestTransactions()
     {
         var result = await _ingestionService.IngestAllSourcesAsync();

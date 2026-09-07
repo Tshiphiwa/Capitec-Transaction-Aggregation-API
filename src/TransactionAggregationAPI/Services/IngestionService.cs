@@ -1,7 +1,7 @@
 using System.Text.Json;
 using Capitec_Transaction_Aggregation_API.Infrastructure;
 using Capitec_Transaction_Aggregation_API.Models;
-using Capitec_Transaction_Aggregation_API.MockSources;
+using Capitec_Transaction_Aggregation_API.DTOs;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging.Abstractions;
 

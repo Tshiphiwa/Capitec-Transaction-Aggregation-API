@@ -8,11 +8,13 @@ public class DatabaseSeeder
 {
     private readonly AppDbContext _dbContext;
     private readonly ILogger<DatabaseSeeder> _logger;
+    private readonly IConfiguration _configuration;
 
-    public DatabaseSeeder(AppDbContext dbContext, ILogger<DatabaseSeeder> logger)
+    public DatabaseSeeder(AppDbContext dbContext, ILogger<DatabaseSeeder> logger, IConfiguration configuration)
     {
         _dbContext = dbContext;
         _logger = logger;
+        _configuration = configuration;
     }
 
     public async Task SeedAsync()
@@ -34,7 +36,7 @@ public class DatabaseSeeder
                 Id = Guid.NewGuid(),
                 Name = "Card Processing System",
                 Code = "CARD",
-                BaseUrl = "http://localhost:5000/api/mock-sources/card",
+                BaseUrl = _configuration["MockSources:Card:BaseUrl"] ?? "http://localhost:5000/api/mock-sources/card",
                 IsActive = true,
                 CreatedDate = DateTime.UtcNow,
             },
@@ -43,7 +45,7 @@ public class DatabaseSeeder
                 Id = Guid.NewGuid(),
                 Name = "EFT Payment System",
                 Code = "EFT",
-                BaseUrl = "http://localhost:5000/api/mock-sources/eft",
+                BaseUrl = _configuration["MockSources:Eft:BaseUrl"] ?? "http://localhost:5000/api/mock-sources/eft",
                 IsActive = true,
                 CreatedDate = DateTime.UtcNow,
             },
@@ -52,15 +54,15 @@ public class DatabaseSeeder
                 Id = Guid.NewGuid(),
                 Name = "Digital Wallet System",
                 Code = "WALLET",
-                BaseUrl = "http://localhost:5000/api/mock-sources/wallet",
+                BaseUrl = _configuration["MockSources:Wallet:BaseUrl"] ?? "http://localhost:5000/api/mock-sources/wallet",
                 IsActive = true,
                 CreatedDate = DateTime.UtcNow,
             }
         };
-        
+
         _dbContext.TransactionSources.AddRange(sources);
         await _dbContext.SaveChangesAsync();
-        
+
         _logger.LogInformation("Seeding database {Count} sources successful", sources.Count);
     }
     private async Task SeedAdminUserAsync()

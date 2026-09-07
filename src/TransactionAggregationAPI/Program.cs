@@ -103,20 +103,25 @@ try
 
     builder.Services.AddCors(options =>
     {
-        options.AddDefaultPolicy(policy =>
+        options.AddPolicy("AllowedOrigins", policy =>
         {
-            policy.AllowAnyOrigin()
-                .AllowAnyMethod()
-                .AllowAnyHeader();
+            var allowedOrigins = builder.Configuration.GetSection("AllowedOrigins").Get<string[]>() ?? ["https://localhost:4200", "http://localhost:4200"];
+
+            policy.WithOrigins(allowedOrigins)
+                .AllowAnyHeader()
+                .AllowAnyMethod();
         });
     });
 
     var app = builder.Build();
 
-    using (var scope = app.Services.CreateScope())
+    if (app.Environment.IsDevelopment() || app.Environment.IsEnvironment("Local"))
     {
-        var seeder = scope.ServiceProvider.GetRequiredService<DatabaseSeeder>();
-        await seeder.SeedAsync();
+        using (var scope = app.Services.CreateScope())
+        {
+            var seeder = scope.ServiceProvider.GetRequiredService<DatabaseSeeder>();
+            await seeder.SeedAsync();
+        }
     }
 
     app.UseMiddleware<CorrelationIdMiddleware>();
@@ -133,7 +138,7 @@ try
         });
     }
 
-    app.UseCors();
+    app.UseCors("AllowedOrigins");
     app.UseRouting();
     app.UseAuthentication();
     app.UseAuthorization();

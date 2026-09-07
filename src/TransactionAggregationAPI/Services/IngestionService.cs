@@ -77,7 +77,14 @@ public class IngestionService
             }
 
             transaction.SourceId = sourceId;
-            transaction.Source ??= await _dbContext.TransactionSources.FindAsync(sourceId);
+
+            var sourceEntity = transaction.Source ?? await _dbContext.TransactionSources.FindAsync(sourceId);
+            if (sourceEntity is null)
+            {
+                throw new InvalidOperationException($"Transaction source with ID {sourceId} was not found.");
+            }
+
+            transaction.Source = sourceEntity;
 
             if (string.IsNullOrWhiteSpace(transaction.Category) || string.Equals(transaction.Category, "Uncategorised", StringComparison.OrdinalIgnoreCase))
             {
@@ -151,23 +158,25 @@ public class IngestionService
     private Transaction MapToTransaction(RawTransactionDto raw, TransactionSource source)
     {
         var (category, categorySource) = _categorizationService.Categorize(raw.MccCode, raw.Description);
+        var transactionType = MapTransactionType(raw.TransactionType);
+        var direction = MapTransactionDirection(raw.Direction);
 
         return new Transaction
         {
             Id = Guid.NewGuid(),
             Amount = raw.Amount,
-            Currency = raw.Currency,
+            Currency = string.IsNullOrWhiteSpace(raw.Currency) ? "ZAR" : raw.Currency,
             Description = raw.Description,
-            MerchantName = raw.MerchantName,
-            MccCode = raw.MccCode,
+            MerchantName = string.IsNullOrWhiteSpace(raw.MerchantName) ? "Unknown Merchant" : raw.MerchantName,
+            MccCode = string.IsNullOrWhiteSpace(raw.MccCode) ? null : raw.MccCode,
             Category = category,
-            CategorySource = string.IsNullOrWhiteSpace(raw.MccCode) ? CategorySource.Keyword : CategorySource.MccCode,
-            TransactionType = MapTransactionType(raw.TransactionType),
-            Direction = MapTransactionDirection(raw.Direction),
+            CategorySource = categorySource,
+            TransactionType = transactionType,
+            Direction = direction,
             TransactionDate = raw.TransactionDate,
             Reference = raw.Reference,
-            FromAccount = raw.FromAccount,
-            ToAccount = raw.ToAccount,
+            FromAccount = string.IsNullOrWhiteSpace(raw.FromAccount) ? "Unknown" : raw.FromAccount,
+            ToAccount = string.IsNullOrWhiteSpace(raw.ToAccount) ? "Unknown" : raw.ToAccount,
             SourceId = source.Id,
             Source = source,
             CreatedDate = DateTime.UtcNow,
@@ -175,8 +184,9 @@ public class IngestionService
         };
     }
 
-    private static TransactionType MapTransactionType(string rawType) =>
-        rawType.ToLowerInvariant() switch
+    private TransactionType MapTransactionType(string rawType)
+    {
+        return rawType.ToLowerInvariant() switch
         {
             "CARD_SWIPE" => TransactionType.CardSwipe,
             "EFT_CREDIT" => TransactionType.EftTransfer,
@@ -186,15 +196,30 @@ public class IngestionService
             "EFT_TRANSFER" => TransactionType.EftTransfer,
             "SALARY_CREDIT" => TransactionType.SalaryCredit,
             "ATM_WITHDRAWAL" => TransactionType.AtmWithdrawal,
-            _ => TransactionType.EftTransfer
+            _ => LogAndDefaultToEft(rawType)
         };
+    }
 
-    private static TransactionDirection MapTransactionDirection(string rawDirection) =>
-        rawDirection?.ToLowerInvariant() switch
+    private TransactionDirection MapTransactionDirection(string rawDirection)
+    {
+        return rawDirection?.ToLowerInvariant() switch
         {
             "CREDIT" => TransactionDirection.Credit,
-            _ => TransactionDirection.Debit
+            _ => LogAndDefaultToDebit(rawDirection)
         };
+    }
+
+    private TransactionType LogAndDefaultToEft(string rawType)
+    {
+        _logger.LogWarning("Unrecognized transaction type '{TransactionType}' received. Defaulting to EFT transfer.", rawType);
+        return TransactionType.EftTransfer;
+    }
+
+    private TransactionDirection LogAndDefaultToDebit(string? rawDirection)
+    {
+        _logger.LogWarning("Unrecognized transaction direction '{TransactionDirection}' received. Defaulting to Debit.", rawDirection ?? "<null>");
+        return TransactionDirection.Debit;
+    }
 
     public class IngestionResultDto
     {

@@ -20,9 +20,9 @@ public class TransactionService
 
     public async Task<PagedResultDto<TransactionDto>> GetTransactionsAsync(TransactionFilterDto filter)
     {
-        var pageSize = Math.Min(filter.PageSize, MaxPageSize);
+        var pageSize = filter.PageSize <= 0 ? 20 : Math.Min(filter.PageSize, MaxPageSize);
         var page = Math.Max(filter.Page, 1);
-   
+
         var query = _dbContext.Transactions
             .Include(t => t.Source)
             .AsQueryable();

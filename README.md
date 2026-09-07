@@ -1,126 +1,293 @@
 # Capitec Transaction Aggregation API
 
-A production-oriented .NET 8 Web API designed for aggregating and categorizing customer transaction data from multiple mock financial sources. The solution is structured to reflect how a real-world backend service would be built and operated in a secure, maintainable, and deployable manner.
+> A production-oriented .NET 8 Web API for aggregating and categorizing customer transaction data from multiple financial sources. Built with clean architecture, security, and operational readiness in mind.
 
-## Project brief
+---
 
-This repository implements the Transaction Aggregation API brief for Capitec.
+## Table of Contents
 
-## Solution overview
+- [Overview](#overview)
+- [Architecture](#architecture)
+- [Tech Stack](#tech-stack)
+- [Features](#features)
+- [Prerequisites](#prerequisites)
+- [Quick Start](#quick-start)
+- [Configuration](#configuration)
+- [Running the Application](#running-the-application)
+- [API Documentation](#api-documentation)
+- [Authentication](#authentication)
+- [Testing](#testing)
+- [Docker Deployment](#docker-deployment)
+- [Health Checks](#health-checks)
+- [Security](#security)
+- [Project Structure](#project-structure)
+- [Contributing](#contributing)
+- [License](#license)
 
-The API ingests transaction data from multiple mocked upstream systems, normalizes the payloads, assigns categories based on MCC and keyword rules, and exposes the data through a secure and queryable API surface. The service is designed for operational readiness and supports local development, automated testing, and Docker-based deployment.
+---
+
+## Overview
+
+The **Capitec Transaction Aggregation API** is a .NET 8 Web API that ingests transaction data from multiple mocked upstream financial systems, normalizes payloads, assigns categories based on MCC codes and keyword rules, and exposes the data through a secure, queryable API surface.
+
+### Problem Statement
+
+Capitec needs a unified view of customer transactions across disparate systems (EFT, card payments, digital wallets). This API solves that by providing:
+- **Multi-source ingestion** from mocked EFT, card, and wallet transaction systems
+- **Automatic categorization** using MCC codes and merchant keyword matching
+- **Secure, authenticated access** with JWT tokens
+- **Production-ready observability** with structured logging, correlation IDs, and health checks
+
+---
 
 ## Architecture
 
-The project follows a clean separation of concerns:
+The solution follows **Clean Architecture** principles with clear separation of concerns:
 
-- Controllers: API endpoints for auth, health, sources, and transactions
-- Services: business logic for categorization, ingestion, authentication, and transaction retrieval
-- Infrastructure: EF Core persistence, migration support, and database seeding
-- Models: domain entities such as transactions, users, and source metadata
-- DTOs: request/response contracts for typed API communication
-- Middleware: correlation IDs, centralized exception handling, and request tracing
+```
+┌─────────────────────────────────────────────────────────────┐
+│                      Controllers                            │
+│  Auth │ Health │ Sources │ Transactions                      │
+└──────────────────────────┬──────────────────────────────────┘
+                           ▼
+┌─────────────────────────────────────────────────────────────┐
+│                       Services                              │
+│  Auth │ Categorization │ Ingestion │ Transaction            │
+└──────────────────────────┬──────────────────────────────────┘
+                           ▼
+┌─────────────────────────────────────────────────────────────┐
+│                    Infrastructure                           │
+│  EF Core │ PostgreSQL │ Migrations │ Seeding                │
+└─────────────────────────────────────────────────────────────┘
+```
 
-## Tech stack
+### Layer Responsibilities
 
-- .NET 8
-- ASP.NET Core Web API
-- Entity Framework Core
-- PostgreSQL
-- JWT authentication
-- Serilog structured logging
-- Swagger / OpenAPI
-- Docker / Docker Compose
-- xUnit test suite
+| Layer | Components | Responsibility |
+|-------|------------|----------------|
+| **Presentation** | Controllers, Middleware | HTTP handling, request/response serialization, correlation IDs, exception handling |
+| **Application** | Services, DTOs | Business logic, categorization rules, ingestion orchestration, transaction queries |
+| **Domain** | Models, Enums | Core entities (Transaction, User, TransactionSource), business rules |
+| **Infrastructure** | EF Core, Repositories | Data persistence, migrations, database seeding |
 
-## Production-grade features included
+---
 
-- Secure configuration and secret management through environment variables
-- JWT-based authentication and protected API access
-- Database migrations for versioned schema changes
-- Structured logging with correlation IDs for traceability
-- Centralized exception handling for consistent API responses
-- Health and readiness endpoints for dependency-aware monitoring
-- Non-root container runtime for better runtime hygiene
-- Restricted CORS configuration for controlled client access
-- Dependency and image-level vulnerability scanning with Trivy by Aqua Security
+## Tech Stack
+
+| Category | Technology | Version |
+|----------|------------|---------|
+| **Runtime** | .NET | 8.0 LTS |
+| **Framework** | ASP.NET Core | 8.0 |
+| **Database** | PostgreSQL | 15 |
+| **ORM** | Entity Framework Core | 8.0 |
+| **Auth** | JWT Bearer Tokens | - |
+| **Logging** | Serilog | 3.x |
+| **API Docs** | Swagger/OpenAPI | - |
+| **Containerization** | Docker & Docker Compose | - |
+| **Testing** | xUnit, Moq, FluentAssertions | - |
+| **Security Scan** | Trivy (Aqua Security) | - |
+
+---
+
+## Features
+
+### Core Functionality
+- ✅ **Multi-source transaction ingestion** (EFT, Card, Wallet mock sources)
+- ✅ **Automatic categorization** via MCC codes + merchant keyword rules
+- ✅ **Paginated, filterable transaction queries** (date range, source, category, amount)
+- ✅ **Transaction summaries** with category breakdowns
+- ✅ **Source management** (list configured sources, trigger ingestion)
+
+### Security & Auth
+- ✅ **JWT-based authentication** with secure key management
+- ✅ **Protected endpoints** requiring valid Bearer tokens
+- ✅ **Environment-based secrets** (no secrets in source control)
+- ✅ **Restricted CORS** for controlled client access
+
+### Observability & Operations
+- ✅ **Structured logging** with Serilog (JSON format)
+- ✅ **Correlation IDs** on every request for distributed tracing
+- ✅ **Health & readiness endpoints** (`/health`, `/ready`)
+- ✅ **Centralized exception handling** with consistent error responses
+- ✅ **Non-root Docker container** for runtime security
+
+### Quality Assurance
+- ✅ **Automated test suite** (unit + integration tests)
+- ✅ **Database migrations** for versioned schema changes
+- ✅ **Vulnerability scanning** with Trivy
+- ✅ **Code analysis** via `dotnet format` / analyzers
+
+---
 
 ## Prerequisites
 
-- .NET 8 SDK
-- Docker Desktop or Docker Engine
-- PostgreSQL client tools (optional)
+| Tool | Version | Install |
+|------|---------|---------|
+| .NET SDK | 8.0+ | [Download](https://dotnet.microsoft.com/download/dotnet/8.0) |
+| Docker Desktop / Engine | 24.0+ | [Download](https://www.docker.com/products/docker-desktop/) |
+| PostgreSQL Client (optional) | 15+ | [Download](https://www.postgresql.org/download/) |
+| Git | 2.40+ | [Download](https://git-scm.com/) |
 
-## Configuration
+---
 
-The repository keeps committed configuration placeholder-safe and does not store live secrets in source control. Local secrets should be stored in a local `.env` file.
+## Quick Start
 
-1. Create the local environment file:
-
-   ```bash
-   cp .env.example .env
-   ```
-
-2. Add your local values:
-
-   ```env
-   DB_NAME=capitec_transactions
-   DB_USER=postgres
-   DB_PASSWORD=your_local_password
-   JWT_KEY=replace_with_a_strong_secret_key
-   ```
-
-3. The runtime also reads placeholder-safe values from:
-   - `src/TransactionAggregationAPI/appsettings.json`
-   - `src/TransactionAggregationAPI/appsettings.Development.json`
-
-## Run locally without Docker
-
-From the repository root:
+### Option 1: Docker Compose (Recommended)
 
 ```bash
-dotnet restore
-dotnet ef database update --project src/TransactionAggregationAPI/Capitec-Transaction-Aggregation-API.csproj
-dotnet run --project src/TransactionAggregationAPI/Capitec-Transaction-Aggregation-API.csproj
-```
+# 1. Clone the repository
+git clone <repository-url>
+cd Capitec-Transaction-Aggregation-API
 
-The API starts on the ASP.NET Core default local endpoints, typically:
+# 2. Create environment file from template
+cp .env.example .env
 
-```text
-https://localhost:5001
-http://localhost:5000
-```
-
-## Run with Docker Compose
-
-From the repository root:
-
-```bash
+# 3. Edit .env with your values (see Configuration section)
+# 4. Start the stack
 docker compose up --build
 ```
 
-This starts the production runtime stack:
+**Access points:**
+- API: `http://localhost:8080`
+- Swagger UI: `http://localhost:8080/swagger`
+- Health: `http://localhost:8080/health`
 
-- the API on port `8080`
-- PostgreSQL on port `5432`
+---
 
-This compose configuration is intended for the application runtime and database, not for running the automated test suite. The tests are designed to run under the `Testing` environment with the EF Core in-memory database and therefore use `dotnet test` directly instead of the production compose stack.
+### Option 2: Local Development (No Docker)
 
-## Health and readiness checks
+```bash
+# 1. Restore dependencies
+dotnet restore
 
-The service exposes health endpoints for runtime and dependency monitoring:
+# 2. Create and configure .env file
+cp .env.example .env
+# Edit .env with your local PostgreSQL connection details
 
-```http
-GET /health
-GET /ready
-GET /api/health
+# 3. Apply database migrations
+dotnet ef database update --project src/TransactionAggregationAPI/Capitec-Transaction-Aggregation-API.csproj
+
+# 4. Run the API
+dotnet run --project src/TransactionAggregationAPI/Capitec-Transaction-Aggregation-API.csproj
 ```
+
+**Access points:**
+- HTTPS: `https://localhost:5001`
+- HTTP: `http://localhost:5000`
+- Swagger UI: `https://localhost:5001/swagger`
+
+---
+
+## Configuration
+
+The application uses **environment variables** for secrets and **appsettings.json** for non-sensitive configuration.
+
+### Environment Variables (`.env`)
+
+Create from template:
+```bash
+cp .env.example .env
+```
+
+Required variables:
+
+| Variable | Description | Example |
+|----------|-------------|---------|
+| `DB_NAME` | PostgreSQL database name | `capitec_transactions` |
+| `DB_USER` | Database username | `postgres` |
+| `DB_PASSWORD` | Database password | `secure_password_123` |
+| `DB_HOST` | Database host (Docker: `db`, Local: `localhost`) | `db` |
+| `DB_PORT` | Database port | `5432` |
+| `JWT_KEY` | Signing key (min 256 bits) | `your-super-secret-key-at-least-32-chars` |
+| `JWT_ISSUER` | Token issuer | `CapitecTransactionAPI` |
+| `JWT_AUDIENCE` | Token audience | `CapitecTransactionAPI` |
+| `ASPNETCORE_ENVIRONMENT` | Runtime environment | `Development` / `Production` |
+
+### App Settings (`appsettings.json`)
+
+Non-sensitive configuration:
+- Connection string template (placeholders replaced at runtime)
+- Serilog logging levels
+- CORS allowed origins
+- Swagger configuration
+
+---
+
+## Running the Application
+
+### Development Mode
+
+```bash
+# With hot reload
+dotnet watch run --project src/TransactionAggregationAPI/Capitec-Transaction-Aggregation-API.csproj
+```
+
+### Production Build
+
+```bash
+# Build optimized release
+dotnet publish src/TransactionAggregationAPI/Capitec-Transaction-Aggregation-API.csproj -c Release -o ./publish
+
+# Build Docker image
+docker build -t capitec-transaction-api:latest .
+```
+
+### Database Migrations
+
+```bash
+# Create new migration
+dotnet ef migrations add MigrationName --project src/TransactionAggregationAPI/Capitec-Transaction-Aggregation-API.csproj
+
+# Apply migrations
+dotnet ef database update --project src/TransactionAggregationAPI/Capitec-Transaction-Aggregation-API.csproj
+
+# Remove last migration
+dotnet ef migrations remove --project src/TransactionAggregationAPI/Capitec-Transaction-Aggregation-API.csproj
+```
+
+---
+
+## API Documentation
+
+### Swagger / OpenAPI
+
+Interactive API documentation is available at:
+- **Local**: `https://localhost:5001/swagger`
+- **Docker**: `http://localhost:8080/swagger`
+
+### Base URL
+
+| Environment | Base URL |
+|-------------|----------|
+| Local (HTTPS) | `https://localhost:5001` |
+| Local (HTTP) | `http://localhost:5000` |
+| Docker | `http://localhost:8080` |
+
+### Endpoints Overview
+
+| Method | Endpoint | Description | Auth |
+|--------|----------|-------------|------|
+| `GET` | `/health` | Liveness probe | ❌ |
+| `GET` | `/ready` | Readiness probe (checks DB) | ❌ |
+| `GET` | `/api/health` | Detailed health info | ❌ |
+| `POST` | `/api/auth/login` | Obtain JWT token | ❌ |
+| `GET` | `/api/transactions` | List transactions (paginated) | ✅ |
+| `GET` | `/api/transactions/{id}` | Get transaction by ID | ✅ |
+| `GET` | `/api/transactions/summary` | Category breakdown summary | ✅ |
+| `GET` | `/api/sources` | List configured sources | ✅ |
+| `POST` | `/api/sources/ingest` | Trigger ingestion from all sources | ✅ |
+
+---
 
 ## Authentication
 
-The API supports JWT authentication.
+The API uses **JWT Bearer tokens**. Include the token in the `Authorization` header:
 
-### Login example
+```
+Authorization: Bearer <your-jwt-token>
+```
+
+### Login
 
 ```http
 POST /api/auth/login
@@ -132,66 +299,185 @@ Content-Type: application/json
 }
 ```
 
-## Main API endpoints
+**Response:**
+```json
+{
+  "token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
+  "expiresAt": "2026-09-07T15:30:00Z"
+}
+```
 
-- `GET /api/health`
-- `POST /api/auth/login`
-- `GET /api/transactions`
-- `GET /api/transactions/summary`
-- `GET /api/sources`
-- `POST /api/sources/ingest`
+### Default Test Credentials
 
-## Test execution
+| Username | Password | Role |
+|----------|----------|------|
+| `admin` | `Password123!` | Administrator |
 
-Run the full automated test suite locally from the repository root:
+> **Note**: In production, use strong passwords and rotate the `JWT_KEY` regularly.
+
+---
+
+## Testing
+
+### Run All Tests
 
 ```bash
+# From repository root
 dotnet test --nologo
 ```
 
-This is the expected execution path for the validation suite because the integration tests run under the `Testing` environment and use the EF Core in-memory provider rather than the PostgreSQL container. Docker Compose remains configured for the production API runtime, not the unit/integration test environment.
-
-If a Docker-based test runner is needed later, it should be added as a separate, dedicated test service with its own environment and not by reusing the production `api` service configuration.
-
-## Vulnerability scanning
-
-As part of the production-grade security review, the container image was scanned with Trivy by Aqua Security to identify image and dependency vulnerabilities before final runtime use.
+### Run with Coverage
 
 ```bash
-trivy image capitec-api-test:latest
+dotnet test --collect:"XPlat Code Coverage" --results-directory ./coverage
 ```
 
-This adds an additional security validation layer beyond unit tests and runtime health checks.
+### Test Categories
 
-## Production readiness checklist
+| Test Project | Description |
+|--------------|-------------|
+| `TransactionAggregationApi.Tests` | Unit & integration tests for services, controllers, middleware |
 
-This project addresses the most relevant production-readiness practices for this brief:
+### Test Environment
 
-- Health and readiness checks are in place for application and dependency health
-- Structured logging with Serilog supports observability and incident investigation
-- Correlation IDs are attached to each request for traceability
-- Environment-based configuration keeps secrets out of source control
-- EF Core migrations provide versioned database changes
-- Docker runtime is hardened with a non-root user and health checks
-- CORS is restricted to trusted origins
-- Centralized exception handling keeps API failures predictable
-- Security scanning is included through Trivy by Aqua Security
+Tests run under the `Testing` environment using **EF Core In-Memory provider** (no PostgreSQL required).
 
-## Repository status
+---
 
-This project includes the required submission elements:
+## Docker Deployment
 
-- runnable Dockerfile
-- Docker Compose setup
-- environment template file
-- README with setup, run, and test instructions
-- automated tests
-- production-oriented architecture and security practices
+### Run Production Stack
+
+```bash
+docker compose -f docker-compose.yml up --build -d
+```
+
+### View Logs
+
+```bash
+docker compose logs -f api
+```
+
+### Security Scanning
+
+```bash
+# Scan built image for vulnerabilities
+trivy image capitec-transaction-api:latest
+
+# Scan with severity filter
+trivy image --severity HIGH,CRITICAL capitec-transaction-api:latest
+```
+
+---
+
+## Health Checks
+
+| Endpoint | Purpose | Dependencies Checked |
+|----------|---------|---------------------|
+| `GET /health` | Liveness (k8s livenessProbe) | None - process alive |
+| `GET /ready` | Readiness (k8s readinessProbe) | Database connectivity |
+| `GET /api/health` | Detailed status | DB, configuration, uptime |
+
+### Example Response
+
+```json
+{
+  "status": "Healthy",
+  "checks": [
+    {
+      "name": "Database",
+      "status": "Healthy",
+      "description": "PostgreSQL connection successful"
+    }
+  ],
+  "totalDuration": "00:00:00.045"
+}
+```
+
+---
+
+## Security
+
+### Implemented Measures
+
+| Measure | Implementation |
+|---------|----------------|
+| **Secret Management** | Environment variables only, `.env` in `.gitignore` |
+| **Authentication** | JWT with HS256, configurable expiry |
+| **Authorization** | `[Authorize]` attribute on protected endpoints |
+| **CORS** | Restricted to configured origins only |
+| **Container** | Non-root user (`appuser`), read-only filesystem |
+| **Headers** | Security headers via middleware |
+| **Scanning** | Trivy vulnerability scanning in CI/CD |
+
+### Security Checklist for Production
+
+- [ ] Rotate `JWT_KEY` to a strong 256-bit secret
+- [ ] Use managed PostgreSQL (Azure Database, AWS RDS, etc.)
+- [ ] Enable TLS/SSL termination at reverse proxy
+- [ ] Configure rate limiting
+- [ ] Set up audit logging for auth events
+- [ ] Run Trivy scan on every build
+- [ ] Review and restrict CORS origins
+
+---
+
+## Project Structure
+
+```
+Capitec-Transaction-Aggregation-API/
+├── .github/                    # GitHub Actions workflows (if any)
+├── src/
+│   └── TransactionAggregationAPI/
+│       ├── Controllers/        # API endpoints
+│       │   ├── AuthController.cs
+│       │   ├── HealthController.cs
+│       │   ├── SourcesController.cs
+│       │   ├── TransactionController.cs
+│       │   └── MockSources/    # Mock upstream systems
+│       ├── Services/           # Business logic
+│       │   ├── AuthService.cs
+│       │   ├── CategorizationService.cs
+│       │   ├── IngestionService.cs
+│       │   └── TransactionService.cs
+│       ├── Models/             # Domain entities
+│       │   ├── Transaction.cs
+│       │   ├── User.cs
+│       │   ├── TransactionSource.cs
+│       │   └── Enums.cs
+│       ├── DTOs/               # Request/Response contracts
+│       ├── Infrastructure/     # EF Core, Repositories
+│       │   ├── Data/
+│       │   ├── Migrations/
+│       │   └── Repositories/
+│       ├── Middleware/         # Cross-cutting concerns
+│       │   ├── CorrelationIdMiddleware.cs
+│       │   └── ExceptionHandlingMiddleware.cs
+│       ├── Extensions/         # DI registration
+│       ├── Properties/
+│       ├── appsettings.json
+│       ├── appsettings.Development.json
+│       ├── appsettings.Local.json
+│       ├── Program.cs
+│       └── Dockerfile
+├── tests/
+│   └── TransactionAggregationApi.Tests/
+├── docker-compose.yml
+├── .env.example
+├── .dockerignore
+├── .gitignore
+├── TransactionAggregationAPI.sln
+└── README.md
+```
+
+---
 
 ## References used
 
-- Production readiness guidance: https://medium.com/@soukainaguassmi/how-to-make-your-application-production-ready-a-practical-guide-81a7f50fad22
-- Production-ready definition overview: https://www.mindstudio.ai/blog/what-does-production-ready-actually-mean
-- Meaningful git commit messages: https://medium.com/@iambonitheuri/the-art-of-writing-meaningful-git-commit-messages-a56887a4cb49
-- JWT authentication guidance: https://kristine-a-du.medium.com/step-by-step-guide-for-implementing-api-authentication-with-json-web-tokens-jwt-626f50449e4c
-- Serilog guidance: https://elanchezhiyan-p.medium.com/mastering-serilog-in-net-the-complete-guide-2025-edition-fb9b0be855cb
+- [Production Readiness Guide](https://medium.com/@soukainaguassmi/how-to-make-your-application-production-ready-a-practical-guide-81a7f50fad22)
+- [What Does Production Ready Actually Mean?](https://www.mindstudio.ai/blog/what-does-production-ready-actually-mean)
+- [Meaningful Git Commit Messages](https://medium.com/@iambonitheuri/the-art-of-writing-meaningful-git-commit-messages-a56887a4cb49)
+- [JWT Authentication Guide](https://kristine-a-du.medium.com/step-by-step-guide-for-implementing-api-authentication-with-json-web-tokens-jwt-626f50449e4c)
+- [Serilog Complete Guide](https://elanchezhiyan-p.medium.com/mastering-serilog-in-net-the-complete-guide-2025-edition-fb9b0be855cb)
+
+---

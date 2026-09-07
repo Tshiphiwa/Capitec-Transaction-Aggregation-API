@@ -36,6 +36,31 @@ public class AuthServiceTests
     }
 
     [Fact]
+    public async Task SeedAsync_WhenNoUsersExist_CreatesAdminUserWithExpectedPassword()
+    {
+        // Arrange
+        await using var dbContext = CreateDbContext();
+        var configuration = new ConfigurationBuilder()
+            .AddInMemoryCollection(new Dictionary<string, string?>
+            {
+                ["MockSources:Card:BaseUrl"] = "http://localhost:5000/api/mock-sources/card",
+                ["MockSources:Eft:BaseUrl"] = "http://localhost:5000/api/mock-sources/eft",
+                ["MockSources:Wallet:BaseUrl"] = "http://localhost:5000/api/mock-sources/wallet"
+            })
+            .Build();
+
+        var seeder = new DatabaseSeeder(dbContext, NullLogger<DatabaseSeeder>.Instance, configuration);
+
+        // Act
+        await seeder.SeedAsync();
+        var adminUser = await dbContext.Users.SingleAsync();
+
+        // Assert
+        Assert.Equal("admin", adminUser.UserName);
+        Assert.True(BCrypt.Net.BCrypt.Verify("Password123!", adminUser.PasswordHash));
+    }
+
+    [Fact]
     public async Task LoginAsync_WhenPasswordIsInvalid_ThrowsUnauthorizedAccessException()
     {
         // Arrange

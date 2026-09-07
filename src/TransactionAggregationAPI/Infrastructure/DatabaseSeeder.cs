@@ -19,7 +19,11 @@ public class DatabaseSeeder
 
     public async Task SeedAsync()
     {
-        await _dbContext.Database.MigrateAsync();
+        if (_dbContext.Database.IsRelational())
+        {
+            await _dbContext.Database.MigrateAsync();
+        }
+
         await SeedSourceAsync();
         await SeedAdminUserAsync();
     }
@@ -75,8 +79,8 @@ public class DatabaseSeeder
             Id = Guid.NewGuid(),
             Email = "admin@capitec.com",
             UserName = "admin",
-            // BCrypt hash of the password the admin will use
-            PasswordHash = "$2b$12$YKwvZMNhWTnkpHYYhrPjm.HtXyfEp0dyGDqsmpKJRHpaEyA5qLiH.",
+            // BCrypt hash for the default admin password: Password123!
+            PasswordHash = "$2b$12$07zXkfI/cBXL/gea58qY6eedQ6sAGtKuBtc1B2Vc.I23NKRiqzKFy",
             Role = UserRole.Admin,
             IsActive = true,
             CreatedDate = DateTime.UtcNow,

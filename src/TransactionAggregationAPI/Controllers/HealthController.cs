@@ -5,6 +5,9 @@ using Microsoft.AspNetCore.Mvc;
 
 namespace Capitec_Transaction_Aggregation_API.Controllers;
 
+/// <summary>
+/// Provides health and readiness status for the API and its backing database.
+/// </summary>
 [ApiController]
 [Route("api/health")]
 public class HealthController : ControllerBase
@@ -15,11 +18,17 @@ public class HealthController : ControllerBase
     {
         _dbContext = dbContext;
     }
-    
+
+    /// <summary>
+    /// Checks whether the API and its database dependencies are healthy.
+    /// </summary>
+    /// <returns>A health payload indicating the current application and database status.</returns>
     [HttpGet]
+    [ProducesResponseType(typeof(HealthDto), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(HealthDto), StatusCodes.Status503ServiceUnavailable)]
     public async Task<IActionResult> GetHealth()
     {
-     var health = new HealthDto
+        var health = new HealthDto
         {
             Status = "Healthy",
             Message = "API is running normally",

@@ -99,10 +99,12 @@ From the repository root:
 docker compose up --build
 ```
 
-This starts:
+This starts the production runtime stack:
 
 - the API on port `8080`
 - PostgreSQL on port `5432`
+
+This compose configuration is intended for the application runtime and database, not for running the automated test suite. The tests are designed to run under the `Testing` environment with the EF Core in-memory database and therefore use `dotnet test` directly instead of the production compose stack.
 
 ## Health and readiness checks
 
@@ -141,11 +143,15 @@ Content-Type: application/json
 
 ## Test execution
 
-Run the full automated test suite:
+Run the full automated test suite locally from the repository root:
 
 ```bash
-dotnet test tests/TransactionAggregationApi.Tests/TransactionAggregationAPI.Tests.csproj --nologo
+dotnet test --nologo
 ```
+
+This is the expected execution path for the validation suite because the integration tests run under the `Testing` environment and use the EF Core in-memory provider rather than the PostgreSQL container. Docker Compose remains configured for the production API runtime, not the unit/integration test environment.
+
+If a Docker-based test runner is needed later, it should be added as a separate, dedicated test service with its own environment and not by reusing the production `api` service configuration.
 
 ## Vulnerability scanning
 

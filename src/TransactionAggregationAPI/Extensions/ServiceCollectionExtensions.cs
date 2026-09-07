@@ -120,16 +120,14 @@ public static class ServiceCollectionExtensions
                 Description = "Enter your bearer token in the format: Bearer {token}"
             });
 
-            options.AddSecurityRequirement(new OpenApiSecurityRequirement
-            {
+            options.AddSecurityRequirement(document =>
+                new OpenApiSecurityRequirement
                 {
-                    new OpenApiSecurityScheme
                     {
-                        Reference = new OpenApiReference { Type = ReferenceType.SecurityScheme, Id = "Bearer" }
-                    },
-                    Array.Empty<string>()
-                }
-            });
+                        new OpenApiSecuritySchemeReference("Bearer"),
+                        new List<string>()
+                    }
+                });
 
             var xmlFile = $"{Assembly.GetExecutingAssembly().GetName().Name}.xml";
             var xmlPath = Path.Combine(AppContext.BaseDirectory, xmlFile);

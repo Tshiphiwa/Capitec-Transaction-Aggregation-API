@@ -1,7 +1,7 @@
 # Transaction Aggregation API
 
-![CI](https://github.com/<your-username>/capiTransactionApi/actions/workflows/ci.yml/badge.svg)
-[![codecov](https://codecov.io/gh/<your-username>/capiTransactionApi/branch/main/graph/badge.svg)](https://codecov.io/gh/<your-username>/capiTransactionApi)
+![CI](https://github.com/Tshiphiwa/Capitec-Transaction-Aggregation-API/actions/workflows/ci.yml/badge.svg)
+[![codecov](https://codecov.io/gh/Tshiphiwa/Capitec-Transaction-Aggregation-API/branch/main/graph/badge.svg)](https://codecov.io/gh/Tshiphiwa/Capitec-Transaction-Aggregation-API)
 ![.NET](https://img.shields.io/badge/.NET-8.0-512BD4)
 ![License](https://img.shields.io/badge/license-MIT-blue)
 ![Docker](https://img.shields.io/badge/docker-ready-2496ED)

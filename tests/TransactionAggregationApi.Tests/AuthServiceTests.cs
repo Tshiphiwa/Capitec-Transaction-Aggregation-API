@@ -6,6 +6,7 @@ using Capitec_Transaction_Aggregation_API.Services.Interfaces;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging.Abstractions;
+using Microsoft.Extensions.Options;
 
 namespace TransactionAggregationAPI.Tests;
 
@@ -19,13 +20,13 @@ public class AuthServiceTests
         dbContext.Users.Add(CreateAdminUser());
         await dbContext.SaveChangesAsync();
 
-        var configuration = CreateJwtConfiguration();
-        IAuthService service = new AuthService(dbContext, configuration, NullLogger<AuthService>.Instance);
+        var jwtTokenService = CreateJwtTokenService();
+        IAuthService service = new AuthService(dbContext, jwtTokenService, NullLogger<AuthService>.Instance);
 
         // Act
         var result = await service.LoginAsync(new LoginRequestDto
         {
-            Username = "admin",
+            Email = "admin@capitec.com",
             Password = "Password123!"
         });
 
@@ -48,7 +49,6 @@ public class AuthServiceTests
                 ["MockSources:Wallet:BaseUrl"] = "http://localhost:5000/api/mock-sources/wallet"
             })
             .Build();
-
         var seeder = new DatabaseSeeder(dbContext, NullLogger<DatabaseSeeder>.Instance, configuration);
 
         // Act
@@ -68,13 +68,13 @@ public class AuthServiceTests
         dbContext.Users.Add(CreateAdminUser());
         await dbContext.SaveChangesAsync();
 
-        var configuration = CreateJwtConfiguration();
-        IAuthService service = new AuthService(dbContext, configuration, NullLogger<AuthService>.Instance);
+        var jwtTokenService = CreateJwtTokenService();
+        IAuthService service = new AuthService(dbContext, jwtTokenService, NullLogger<AuthService>.Instance);
 
         // Act
         var act = async () => await service.LoginAsync(new LoginRequestDto
         {
-            Username = "admin",
+            Email = "admin@capitec.com",
             Password = "WrongPassword!"
         });
 
@@ -84,20 +84,20 @@ public class AuthServiceTests
 
     [Theory]
     [InlineData("", "Password123!")]
-    [InlineData("admin", "")]
+    [InlineData("admin@capitec.com", "")]
     [InlineData(null, "Password123!")]
-    [InlineData("admin", null)]
-    public async Task LoginAsync_WhenUsernameOrPasswordIsMissing_ThrowsArgumentException(string? username, string? password)
+    [InlineData("admin@capitec.com", null)]
+    public async Task LoginAsync_WhenUsernameOrPasswordIsMissing_ThrowsArgumentException(string? email, string? password)
     {
         // Arrange
         await using var dbContext = CreateDbContext();
-        var configuration = CreateJwtConfiguration();
-        IAuthService service = new AuthService(dbContext, configuration, NullLogger<AuthService>.Instance);
+        var jwtTokenService = CreateJwtTokenService();
+        IAuthService service = new AuthService(dbContext, jwtTokenService, NullLogger<AuthService>.Instance);
 
         // Act
         var act = async () => await service.LoginAsync(new LoginRequestDto
         {
-            Username = username ?? string.Empty,
+            Email = email ?? string.Empty,
             Password = password ?? string.Empty
         });
 
@@ -115,13 +115,13 @@ public class AuthServiceTests
         dbContext.Users.Add(inactiveUser);
         await dbContext.SaveChangesAsync();
 
-        var configuration = CreateJwtConfiguration();
-        IAuthService service = new AuthService(dbContext, configuration, NullLogger<AuthService>.Instance);
+        var jwtTokenService = CreateJwtTokenService();
+        IAuthService service = new AuthService(dbContext, jwtTokenService, NullLogger<AuthService>.Instance);
 
         // Act
         var act = async () => await service.LoginAsync(new LoginRequestDto
         {
-            Username = "admin",
+            Email = "admin@capitec.com",
             Password = "Password123!"
         });
 
@@ -134,8 +134,8 @@ public class AuthServiceTests
     {
         // Arrange
         await using var dbContext = CreateDbContext();
-        var configuration = CreateJwtConfiguration();
-        IAuthService service = new AuthService(dbContext, configuration, NullLogger<AuthService>.Instance);
+        var jwtTokenService = CreateJwtTokenService();
+        IAuthService service = new AuthService(dbContext, jwtTokenService, NullLogger<AuthService>.Instance);
 
         // Act
         var act = async () => await service.LoginAsync(null!);
@@ -145,31 +145,25 @@ public class AuthServiceTests
     }
 
     [Fact]
-    public async Task LoginAsync_WhenJwtKeyIsMissing_ThrowsInvalidOperationException()
+    public async Task LoginAsync_WhenJwtKeyIsMissing_ThrowsArgumentException()
     {
         // Arrange
         await using var dbContext = CreateDbContext();
         dbContext.Users.Add(CreateAdminUser());
         await dbContext.SaveChangesAsync();
 
-        var configuration = new ConfigurationBuilder()
-            .AddInMemoryCollection(new Dictionary<string, string?>
-            {
-                ["Jwt:Issuer"] = "CapitecTransactionAPI"
-            })
-            .Build();
-
-        IAuthService service = new AuthService(dbContext, configuration, NullLogger<AuthService>.Instance);
+        var jwtTokenService = new JwtTokenService(Options.Create(new JwtOptions { Issuer = "CapitecTransactionAPI" }));
+        IAuthService service = new AuthService(dbContext, jwtTokenService, NullLogger<AuthService>.Instance);
 
         // Act
         var act = async () => await service.LoginAsync(new LoginRequestDto
         {
-            Username = "admin",
+            Email = "admin@capitec.com",
             Password = "Password123!"
         });
 
         // Assert
-        await Assert.ThrowsAsync<InvalidOperationException>(act);
+        await Assert.ThrowsAsync<ArgumentException>(act);
     }
 
     private static AppDbContext CreateDbContext()
@@ -181,15 +175,13 @@ public class AuthServiceTests
         return new AppDbContext(options);
     }
 
-    private static IConfiguration CreateJwtConfiguration()
+    private static IJwtTokenService CreateJwtTokenService()
     {
-        return new ConfigurationBuilder()
-            .AddInMemoryCollection(new Dictionary<string, string?>
-            {
-                ["Jwt:Key"] = "ThisIsASecretKeyForTesting123456",
-                ["Jwt:Issuer"] = "CapitecTransactionAPI"
-            })
-            .Build();
+        return new JwtTokenService(Options.Create(new JwtOptions
+        {
+            Key = "ThisIsASecretKeyForTesting123456",
+            Issuer = "CapitecTransactionAPI"
+        }));
     }
 
     private static User CreateAdminUser()

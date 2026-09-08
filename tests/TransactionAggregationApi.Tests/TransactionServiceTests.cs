@@ -3,216 +3,294 @@ using Capitec_Transaction_Aggregation_API.Infrastructure;
 using Capitec_Transaction_Aggregation_API.Models;
 using Capitec_Transaction_Aggregation_API.Services;
 using Capitec_Transaction_Aggregation_API.Services.Interfaces;
+using FluentAssertions;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Logging.Abstractions;
+using Moq;
 
 namespace TransactionAggregationAPI.Tests;
 
-public class TransactionServiceTests
+public class TransactionServiceTests : IDisposable
 {
+    private readonly AppDbContext _dbContext;
+    private readonly Mock<ITransactionMapper> _mapperMock;
+    private readonly ITransactionService _sut;
+
+    public TransactionServiceTests()
+    {
+        var options = new DbContextOptionsBuilder<AppDbContext>()
+            .UseInMemoryDatabase($"TransactionServiceTests-{Guid.NewGuid()}")
+            .Options;
+        _dbContext = new AppDbContext(options);
+
+        _mapperMock = new Mock<ITransactionMapper>();
+        _mapperMock
+            .Setup(m => m.MapToDto(It.IsAny<Transaction>()))
+            .Returns<Transaction>(t => new TransactionDto
+            {
+                Id = t.Id,
+                Amount = t.Amount,
+                Category = t.Category,
+                CategorySource = t.CategorySource.ToString(),
+                Direction = t.Direction.ToString(),
+                Description = t.Description,
+                Reference = t.Reference,
+                SourceCode = t.Source?.Code ?? string.Empty,
+                SourceName = t.Source?.Name ?? string.Empty
+            });
+
+        _sut = new TransactionService(_dbContext, _mapperMock.Object, NullLogger<TransactionService>.Instance);
+    }
+
+    public void Dispose()
+    {
+        _dbContext.Database.EnsureDeleted();
+        _dbContext.Dispose();
+    }
+
+    // ── GetTransactionsAsync ──────────────────────────────────────────────────
+
     [Fact]
     public async Task GetTransactionsAsync_WhenFilterHasValidPaging_ReturnsPagedTransactions()
     {
-        // Arrange
-        await using var dbContext = CreateDbContext();
-        var source = CreateSource();
-        dbContext.TransactionSources.Add(source);
-        dbContext.Transactions.AddRange(
-            CreateTransaction(source, "ref-1", 100m, "Groceries"),
-            CreateTransaction(source, "ref-2", 250m, "Salary"),
-            CreateTransaction(source, "ref-3", 75m, "Transport"));
-        await dbContext.SaveChangesAsync();
+        var source = SeedSource();
+        SeedTransactions(source, ("ref-1", 100m, "Groceries"), ("ref-2", 250m, "Salary"), ("ref-3", 75m, "Transport"));
+        await _dbContext.SaveChangesAsync();
 
-        ITransactionService service = new TransactionService(dbContext);
+        var result = await _sut.GetTransactionsAsync(new TransactionFilterDto { Page = 1, PageSize = 2 });
 
-        // Act
-        var result = await service.GetTransactionsAsync(new TransactionFilterDto
-        {
-            Page = 1,
-            PageSize = 2
-        });
-
-        // Assert
-        Assert.Equal(3, result.TotalCount);
-        Assert.Equal(2, result.Items.Count);
+        result.TotalCount.Should().Be(3);
+        result.Items.Should().HaveCount(2);
     }
 
     [Fact]
-    public async Task GetTransactionsAsync_WhenPageSizeIsZero_UsesDefaultPageSize()
+    public async Task GetTransactionsAsync_WhenPageSizeIsZero_ReturnsAllTransactions()
     {
-        // Arrange
-        await using var dbContext = CreateDbContext();
-        var source = CreateSource();
-        dbContext.TransactionSources.Add(source);
-        dbContext.Transactions.AddRange(
-            CreateTransaction(source, "ref-1", 100m, "Groceries"),
-            CreateTransaction(source, "ref-2", 250m, "Salary"));
-        await dbContext.SaveChangesAsync();
+        var source = SeedSource();
+        SeedTransactions(source, ("ref-1", 100m, "Groceries"), ("ref-2", 250m, "Salary"));
+        await _dbContext.SaveChangesAsync();
 
-        ITransactionService service = new TransactionService(dbContext);
+        var result = await _sut.GetTransactionsAsync(new TransactionFilterDto { Page = 1, PageSize = 0 });
 
-        // Act
-        var result = await service.GetTransactionsAsync(new TransactionFilterDto
-        {
-            Page = 1,
-            PageSize = 0
-        });
-
-        // Assert
-        Assert.Equal(2, result.TotalCount);
-        Assert.Equal(2, result.Items.Count);
+        result.TotalCount.Should().Be(2);
+        result.Items.Should().HaveCount(2);
     }
 
     [Fact]
-    public async Task UpdateCategoryAsync_WhenUserIsAdmin_UpdatesCategoryAndMarksItAsManual()
+    public async Task GetTransactionsAsync_WhenCategoryFilterApplied_ReturnsOnlyMatchingTransactions()
     {
-        // Arrange
-        await using var dbContext = CreateDbContext();
-        var source = CreateSource();
-        var transaction = CreateTransaction(source, "ref-1", 100m, "Groceries");
+        var source = SeedSource();
+        SeedTransactions(source, ("ref-1", 100m, "Groceries"), ("ref-2", 250m, "Dining"), ("ref-3", 75m, "Groceries"));
+        await _dbContext.SaveChangesAsync();
 
-        dbContext.TransactionSources.Add(source);
-        dbContext.Transactions.Add(transaction);
-        await dbContext.SaveChangesAsync();
+        var result = await _sut.GetTransactionsAsync(new TransactionFilterDto { Category = "Groceries" });
 
-        ITransactionService service = new TransactionService(dbContext);
-
-        // Act
-        var result = await service.UpdateCategoryAsync(transaction.Id, "Food");
-
-        // Assert
-        Assert.Equal("Food", result.Category);
-        Assert.Equal("Manual", result.CategorySource);
+        result.TotalCount.Should().Be(2);
+        result.Items.Should().AllSatisfy(t => t.Category.Should().Be("Groceries"));
     }
 
     [Fact]
-    public async Task UpdateCategoryAsync_WhenUserIsNotAdmin_ThrowsUnauthorizedAccessException()
+    public async Task GetTransactionsAsync_WhenAmountRangeFilterApplied_ReturnsOnlyTransactionsInRange()
     {
-        // Arrange
-        await using var dbContext = CreateDbContext();
-        var source = CreateSource();
-        var transaction = CreateTransaction(source, "ref-1", 100m, "Groceries");
+        var source = SeedSource();
+        SeedTransactions(source, ("ref-1", 50m, "Groceries"), ("ref-2", 200m, "Dining"), ("ref-3", 500m, "Travel"));
+        await _dbContext.SaveChangesAsync();
 
-        dbContext.TransactionSources.Add(source);
-        dbContext.Transactions.Add(transaction);
-        await dbContext.SaveChangesAsync();
+        var result = await _sut.GetTransactionsAsync(new TransactionFilterDto { MinAmount = 100m, MaxAmount = 300m });
 
-        ITransactionService service = new TransactionService(dbContext);
+        result.TotalCount.Should().Be(1);
+        result.Items.Single().Amount.Should().Be(200m);
+    }
 
-        // Act
-        var act = async () => await service.UpdateCategoryAsync(transaction.Id, "Food", UserRole.Analyst);
+    [Fact]
+    public async Task GetTransactionsAsync_WhenSearchTermMatchesDescription_ReturnsMatchingTransactions()
+    {
+        var source = SeedSource();
+        SeedTransactions(source, ("ref-1", 100m, "Grocery Store"), ("ref-2", 200m, "Airline Ticket"));
+        await _dbContext.SaveChangesAsync();
 
-        // Assert
-        await Assert.ThrowsAsync<UnauthorizedAccessException>(act);
+        var result = await _sut.GetTransactionsAsync(new TransactionFilterDto { Search = "grocery" });
+
+        result.TotalCount.Should().Be(1);
+        result.Items.Single().Description.Should().Contain("Grocery");
+    }
+
+    [Fact]
+    public async Task GetTransactionsAsync_WhenDirectionFilterApplied_ReturnsOnlyMatchingDirection()
+    {
+        var source = SeedSource();
+        var debit = BuildTransaction(source, "ref-1", 100m, "Groceries", TransactionDirection.Debit);
+        var credit = BuildTransaction(source, "ref-2", 500m, "Salary", TransactionDirection.Credit);
+        _dbContext.Transactions.AddRange(debit, credit);
+        await _dbContext.SaveChangesAsync();
+
+        var result = await _sut.GetTransactionsAsync(new TransactionFilterDto { Direction = "Credit" });
+
+        result.TotalCount.Should().Be(1);
+        result.Items.Single().Direction.Should().Be("Credit");
+    }
+
+    // ── GetTransactionByIdAsync ───────────────────────────────────────────────
+
+    [Fact]
+    public async Task GetTransactionByIdAsync_WhenTransactionExists_ReturnsMappedDto()
+    {
+        var source = SeedSource();
+        var tx = BuildTransaction(source, "ref-1", 100m, "Groceries");
+        _dbContext.Transactions.Add(tx);
+        await _dbContext.SaveChangesAsync();
+
+        var result = await _sut.GetTransactionByIdAsync(tx.Id);
+
+        result.Should().NotBeNull();
+        result!.Id.Should().Be(tx.Id);
+        _mapperMock.Verify(m => m.MapToDto(It.IsAny<Transaction>()), Times.Once);
     }
 
     [Fact]
     public async Task GetTransactionByIdAsync_WhenTransactionDoesNotExist_ThrowsKeyNotFoundException()
     {
-        // Arrange
-        await using var dbContext = CreateDbContext();
-        ITransactionService service = new TransactionService(dbContext);
+        var act = async () => await _sut.GetTransactionByIdAsync(Guid.NewGuid());
 
-        // Act
-        var act = async () => await service.GetTransactionByIdAsync(Guid.NewGuid());
+        await act.Should().ThrowAsync<KeyNotFoundException>();
+    }
 
-        // Assert
-        await Assert.ThrowsAsync<KeyNotFoundException>(act);
+    // ── UpdateCategoryAsync ───────────────────────────────────────────────────
+
+    [Fact]
+    public async Task UpdateCategoryAsync_WhenCalledWithValidCategory_PersistsCategoryAndMarksManual()
+    {
+        var source = SeedSource();
+        var tx = BuildTransaction(source, "ref-1", 100m, "Groceries");
+        _dbContext.Transactions.Add(tx);
+        await _dbContext.SaveChangesAsync();
+
+        await _sut.UpdateCategoryAsync(tx.Id, "Food");
+
+        var saved = await _dbContext.Transactions.FindAsync(tx.Id);
+        saved!.Category.Should().Be("Food");
+        saved.CategorySource.Should().Be(CategorySource.Manual);
     }
 
     [Fact]
-    public async Task UpdateCategoryAsync_WhenCategoryIsBlank_ThrowsArgumentException()
+    public async Task UpdateCategoryAsync_WhenCategoryIsWhitespace_ThrowsArgumentException()
     {
-        // Arrange
-        await using var dbContext = CreateDbContext();
-        var source = CreateSource();
-        var transaction = CreateTransaction(source, "ref-1", 100m, "Groceries");
+        var source = SeedSource();
+        var tx = BuildTransaction(source, "ref-1", 100m, "Groceries");
+        _dbContext.Transactions.Add(tx);
+        await _dbContext.SaveChangesAsync();
 
-        dbContext.TransactionSources.Add(source);
-        dbContext.Transactions.Add(transaction);
-        await dbContext.SaveChangesAsync();
+        var act = async () => await _sut.UpdateCategoryAsync(tx.Id, "   ");
 
-        ITransactionService service = new TransactionService(dbContext);
-
-        // Act
-        var act = async () => await service.UpdateCategoryAsync(transaction.Id, "   ", UserRole.Admin);
-
-        // Assert
-        await Assert.ThrowsAsync<ArgumentException>(act);
+        await act.Should().ThrowAsync<ArgumentException>();
     }
 
     [Fact]
-    public async Task GetTransactionSummaryAsync_WhenNoTransactionsExist_ReturnsEmptySummary()
+    public async Task UpdateCategoryAsync_WhenTransactionDoesNotExist_ThrowsKeyNotFoundException()
     {
-        // Arrange
-        await using var dbContext = CreateDbContext();
-        ITransactionService service = new TransactionService(dbContext);
+        var act = async () => await _sut.UpdateCategoryAsync(Guid.NewGuid(), "Food");
 
-        // Act
-        var result = await service.GetTransactionSummaryAsync(new TransactionFilterDto());
-
-        // Assert
-        Assert.Equal(0m, result.TotalDebits);
-        Assert.Equal(0m, result.TotalCredits);
-        Assert.Equal(0, result.TransactionCount);
-        Assert.Equal("None", result.TopSpendingCategory);
+        await act.Should().ThrowAsync<KeyNotFoundException>();
     }
+
+    // ── GetTransactionSummaryAsync ────────────────────────────────────────────
+
+    [Fact]
+    public async Task GetTransactionSummaryAsync_WhenNoTransactionsExist_ReturnsZeroedSummary()
+    {
+        var result = await _sut.GetTransactionSummaryAsync(new TransactionFilterDto());
+
+        result.TotalDebits.Should().Be(0m);
+        result.TotalCredits.Should().Be(0m);
+        result.TransactionCount.Should().Be(0);
+        result.TopSpendingCategory.Should().Be("None");
+    }
+
+    [Fact]
+    public async Task GetTransactionSummaryAsync_WhenTransactionsExist_ReturnsTotalsAndTopCategory()
+    {
+        var source = SeedSource();
+        _dbContext.Transactions.AddRange(
+            BuildTransaction(source, "ref-1", 300m, "Groceries", TransactionDirection.Debit),
+            BuildTransaction(source, "ref-2", 100m, "Dining", TransactionDirection.Debit),
+            BuildTransaction(source, "ref-3", 5000m, "Salary", TransactionDirection.Credit));
+        await _dbContext.SaveChangesAsync();
+
+        var result = await _sut.GetTransactionSummaryAsync(new TransactionFilterDto());
+
+        result.TotalDebits.Should().Be(400m);
+        result.TotalCredits.Should().Be(5000m);
+        result.NetAmount.Should().Be(4600m);
+        result.TopSpendingCategory.Should().Be("Groceries");
+    }
+
+    // ── GetAggregatedTransactionsAsync ────────────────────────────────────────
 
     [Fact]
     public async Task GetAggregatedTransactionsAsync_WhenNoTransactionsExist_ReturnsEmptyAggregation()
     {
-        // Arrange
-        await using var dbContext = CreateDbContext();
-        ITransactionService service = new TransactionService(dbContext);
+        var result = await _sut.GetAggregatedTransactionsAsync(new TransactionFilterDto());
 
-        // Act
-        var result = await service.GetAggregatedTransactionsAsync(new TransactionFilterDto());
-
-        // Assert
-        Assert.Empty(result.Categories);
-        Assert.Equal(0m, result.GrandTotal);
-        Assert.Equal(0, result.TotalTransactions);
+        result.Categories.Should().BeEmpty();
+        result.GrandTotal.Should().Be(0m);
+        result.TotalTransactions.Should().Be(0);
     }
 
-    private static AppDbContext CreateDbContext()
+    [Fact]
+    public async Task GetAggregatedTransactionsAsync_WhenDebitsExist_GroupsByCategoryWithPercentages()
     {
-        var options = new DbContextOptionsBuilder<AppDbContext>()
-            .UseInMemoryDatabase(Guid.NewGuid().ToString())
-            .Options;
+        var source = SeedSource();
+        _dbContext.Transactions.AddRange(
+            BuildTransaction(source, "ref-1", 200m, "Groceries", TransactionDirection.Debit),
+            BuildTransaction(source, "ref-2", 200m, "Groceries", TransactionDirection.Debit),
+            BuildTransaction(source, "ref-3", 400m, "Dining", TransactionDirection.Debit));
+        await _dbContext.SaveChangesAsync();
 
-        return new AppDbContext(options);
+        var result = await _sut.GetAggregatedTransactionsAsync(new TransactionFilterDto());
+
+        result.GrandTotal.Should().Be(800m);
+        result.TotalTransactions.Should().Be(3);
+        var groceries = result.Categories.Single(c => c.Category == "Groceries");
+        groceries.PercentageOfTotalSpend.Should().Be(50m);
     }
 
-    private static TransactionSource CreateSource(string name = "Bank", string code = "BANK")
+    // ── Seed helpers ──────────────────────────────────────────────────────────
+
+    private TransactionSource SeedSource(string name = "Bank", string code = "BANK")
     {
-        return new TransactionSource
-        {
-            Id = Guid.NewGuid(),
-            Name = name,
-            Code = code,
-            BaseUrl = "https://example.com"
-        };
+        var source = new TransactionSource { Id = Guid.NewGuid(), Name = name, Code = code, BaseUrl = "https://example.com" };
+        _dbContext.TransactionSources.Add(source);
+        return source;
     }
 
-    private static Transaction CreateTransaction(TransactionSource source, string reference, decimal amount, string category)
+    private void SeedTransactions(TransactionSource source, params (string Ref, decimal Amount, string Category)[] items)
     {
-        return new Transaction
-        {
-            Id = Guid.NewGuid(),
-            Amount = amount,
-            Currency = "ZAR",
-            Description = category,
-            MerchantName = "Store",
-            MccCode = "5411",
-            Category = category,
-            CategorySource = CategorySource.MccCode,
-            TransactionType = TransactionType.CardSwipe,
-            Direction = TransactionDirection.Debit,
-            TransactionDate = DateTime.UtcNow,
-            Reference = reference,
-            FromAccount = "A",
-            ToAccount = "B",
-            SourceId = source.Id,
-            Source = source
-        };
+        foreach (var (r, a, c) in items)
+            _dbContext.Transactions.Add(BuildTransaction(source, r, a, c));
     }
+
+    private static Transaction BuildTransaction(
+        TransactionSource source,
+        string reference,
+        decimal amount,
+        string category,
+        TransactionDirection direction = TransactionDirection.Debit) => new()
+    {
+        Id = Guid.NewGuid(),
+        Amount = amount,
+        Currency = "ZAR",
+        Description = category,
+        MerchantName = "Store",
+        MccCode = "5411",
+        Category = category,
+        CategorySource = CategorySource.MccCode,
+        TransactionType = TransactionType.CardSwipe,
+        Direction = direction,
+        TransactionDate = DateTime.UtcNow,
+        Reference = reference,
+        FromAccount = "A",
+        ToAccount = "B",
+        SourceId = source.Id,
+        Source = source
+    };
 }

@@ -1,6 +1,5 @@
-using System.Reflection;
 using Capitec_Transaction_Aggregation_API.DTOs;
-using Capitec_Transaction_Aggregation_API.Infrastructure;
+using Capitec_Transaction_Aggregation_API.Services.Interfaces;
 using Microsoft.AspNetCore.Mvc;
 
 namespace Capitec_Transaction_Aggregation_API.Controllers;
@@ -12,11 +11,11 @@ namespace Capitec_Transaction_Aggregation_API.Controllers;
 [Route("api/health")]
 public class HealthController : ControllerBase
 {
-    private readonly AppDbContext _dbContext;
+    private readonly IHealthService _healthService;
 
-    public HealthController(AppDbContext dbContext)
+    public HealthController(IHealthService healthService)
     {
-        _dbContext = dbContext;
+        _healthService = healthService;
     }
 
     /// <summary>
@@ -28,33 +27,8 @@ public class HealthController : ControllerBase
     [ProducesResponseType(typeof(HealthDto), StatusCodes.Status503ServiceUnavailable)]
     public async Task<IActionResult> GetHealth()
     {
-        var health = new HealthDto
-        {
-            Status = "Healthy",
-            Message = "API is running normally",
-            TimeStamp = DateTime.UtcNow,
-            Version = Assembly.GetExecutingAssembly().GetName().Version?.ToString() ?? "Unknown",
-            Components = new Dictionary<string, string>
-            {
-                ["application"] = "Up",
-                ["database"] = _dbContext.Database.CanConnect() ? "Up" : "Down",
-                ["auth"] = "Enabled"
-            }
-        };
+        var (isHealthy, health) = await _healthService.GetHealthAsync();
 
-        var dbHealthy = false;
-        try
-        {
-            dbHealthy = await _dbContext.Database.CanConnectAsync();
-            health.Components["database"] = dbHealthy ? "Up" : "Down";
-        }
-        catch (Exception ex)
-        {
-            health.Message = $"Database connection failed: {ex.Message}";
-        }
-
-        health.Status = dbHealthy ? "Healthy" : "Unhealthy";
-
-        return dbHealthy ? Ok(health) : StatusCode(503, health);
+        return isHealthy ? Ok(health) : StatusCode(StatusCodes.Status503ServiceUnavailable, health);
     }
 }

@@ -80,7 +80,7 @@ public class DatabaseSeeder
             Email = "admin@capitec.com",
             UserName = "admin",
             // BCrypt hash for the default admin password: Password123!
-            PasswordHash = "$2b$12$07zXkfI/cBXL/gea58qY6eedQ6sAGtKuBtc1B2Vc.I23NKRiqzKFy",
+            PasswordHash = BCrypt.Net.BCrypt.HashPassword("Password123!", workFactor: 12),
             Role = UserRole.Admin,
             IsActive = true,
             CreatedDate = DateTime.UtcNow,

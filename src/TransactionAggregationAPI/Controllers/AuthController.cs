@@ -21,10 +21,8 @@ public class AuthController : ControllerBase
 
     /// <summary>
     /// Authenticates a user and returns a JWT bearer token.
+    /// Use the returned token in the authorization header: Bearer {token}
     /// </summary>
-    /// <param name="request">The login request containing the user's credentials.</param>
-    /// <returns>A JWT token for successful authentication.</returns>
-    [AllowAnonymous]
     [HttpPost("login")]
     [ProducesResponseType(typeof(LoginResponseDto), StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status401Unauthorized)]

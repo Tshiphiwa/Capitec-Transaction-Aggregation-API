@@ -1,12 +1,11 @@
 using Capitec_Transaction_Aggregation_API.DTOs;
 
-namespace Capitec_Transaction_Aggregation_API.Services;
+namespace Capitec_Transaction_Aggregation_API.MockSources.Data;
 
-public class WalletTransactionsService : IWalletTransactionsService
+public static class WalletTransactionData
 {
-    public IReadOnlyList<RawTransactionDto> GetTransactions() =>
-    [
-        new RawTransactionDto
+    public static IReadOnlyList<RawTransactionDto> Get() =>
+    [ new ()
         {
             Reference = "WALLET-3001",
             Amount = 245.60m,
@@ -20,7 +19,7 @@ public class WalletTransactionsService : IWalletTransactionsService
             FromAccount = "wallet-01",
             ToAccount = string.Empty,
         },
-        new RawTransactionDto
+        new ()
         {
             Reference = "WALLET-3002",
             Amount = 1500.00m,
@@ -34,7 +33,7 @@ public class WalletTransactionsService : IWalletTransactionsService
             FromAccount = "****1122",
             ToAccount = "wallet-01",
         },
-        new RawTransactionDto
+        new ()
         {
             Reference = "WALLET-3003",
             Amount = 350.00m,
@@ -48,7 +47,7 @@ public class WalletTransactionsService : IWalletTransactionsService
             FromAccount = "wallet-01",
             ToAccount = "sipho-wallet",
         },
-        new RawTransactionDto
+        new ()
         {
             Reference = "WALLET-3004",
             Amount = 189.90m,
@@ -62,7 +61,7 @@ public class WalletTransactionsService : IWalletTransactionsService
             FromAccount = "wallet-01",
             ToAccount = string.Empty,
         },
-        new RawTransactionDto
+        new ()
         {
             Reference = "WALLET-3005",
             Amount = 800.00m,
@@ -76,7 +75,7 @@ public class WalletTransactionsService : IWalletTransactionsService
             FromAccount = "mom-wallet",
             ToAccount = "wallet-01",
         },
-        new RawTransactionDto
+        new ()
         {
             Reference = "WALLET-3006",
             Amount = 129.00m,
@@ -90,7 +89,7 @@ public class WalletTransactionsService : IWalletTransactionsService
             FromAccount = "wallet-01",
             ToAccount = string.Empty,
         },
-        new RawTransactionDto
+        new ()
         {
             Reference = "WALLET-3007",
             Amount = 65.00m,
@@ -104,7 +103,7 @@ public class WalletTransactionsService : IWalletTransactionsService
             FromAccount = "wallet-01",
             ToAccount = string.Empty,
         },
-        new RawTransactionDto
+        new ()
         {
             Reference = "WALLET-3008",
             Amount = 620.00m,
@@ -117,6 +116,5 @@ public class WalletTransactionsService : IWalletTransactionsService
             Direction = "DEBIT",
             FromAccount = "wallet-01",
             ToAccount = string.Empty,
-        }
-    ];
+        }];
 }

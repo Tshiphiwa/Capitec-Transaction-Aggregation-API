@@ -11,26 +11,25 @@ namespace Capitec_Transaction_Aggregation_API.Controllers;
 /// </summary>
 [ApiController]
 [Route("api/sources")]
-[Authorize(AuthenticationSchemes = JwtBearerDefaults.AuthenticationScheme)]
+[Authorize]
 public class SourcesController : ControllerBase
 {
-    private readonly ITransactionService _transactionService;
+    private readonly ISourceService _sourceService;
 
-    public SourcesController(ITransactionService transactionService)
+    public SourcesController(ISourceService sourceService)
     {
-        _transactionService = transactionService;
+        _sourceService = sourceService;
     }
 
     /// <summary>
-    /// Retrieves the list of configured transaction sources.
+    /// Returns all transaction sources with their status and transaction counts
     /// </summary>
-    /// <returns>A collection of active source definitions.</returns>
     [HttpGet]
     [ProducesResponseType(typeof(IEnumerable<TransactionSourceDto>), StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status401Unauthorized)]
     public async Task<IActionResult> GetSources()
     {
-        var sources = await _transactionService.GetSourcesAsync();
+        var sources = await _sourceService.GetSourcesAsync();
         return Ok(sources);
     }
 }

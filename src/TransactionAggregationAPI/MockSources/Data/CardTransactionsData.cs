@@ -1,12 +1,11 @@
 using Capitec_Transaction_Aggregation_API.DTOs;
 
-namespace Capitec_Transaction_Aggregation_API.Services;
+namespace Capitec_Transaction_Aggregation_API.MockSources.Data;
 
-public class CardTransactionsService : ICardTransactionsService
+public static class CardTransactionData
 {
-    public IReadOnlyList<RawTransactionDto> GetTransactions() =>
-    [
-        new RawTransactionDto
+    public static IReadOnlyList<RawTransactionDto> Get() =>
+    [        new ()
         {
             Reference = "CARD-1001",
             Amount = 189.90m,
@@ -20,7 +19,7 @@ public class CardTransactionsService : ICardTransactionsService
             FromAccount = "****1234",
             ToAccount = string.Empty,
         },
-        new RawTransactionDto
+        new ()
         {
             Reference = "CARD-1002",
             Amount = 648.75m,
@@ -34,7 +33,7 @@ public class CardTransactionsService : ICardTransactionsService
             FromAccount = "****1234",
             ToAccount = string.Empty,
         },
-        new RawTransactionDto
+        new ()
         {
             Reference = "CARD-1003",
             Amount = 820.00m,
@@ -48,7 +47,7 @@ public class CardTransactionsService : ICardTransactionsService
             FromAccount = "****1234",
             ToAccount = string.Empty,
         },
-        new RawTransactionDto
+        new ()
         {
             Reference = "CARD-1004",
             Amount = 169.00m,
@@ -62,7 +61,7 @@ public class CardTransactionsService : ICardTransactionsService
             FromAccount = "****1234",
             ToAccount = string.Empty,
         },
-        new RawTransactionDto
+        new ()
         {
             Reference = "CARD-1005",
             Amount = 1424.80m,
@@ -76,7 +75,7 @@ public class CardTransactionsService : ICardTransactionsService
             FromAccount = "****1234",
             ToAccount = string.Empty,
         },
-        new RawTransactionDto
+        new ()
         {
             Reference = "CARD-1006",
             Amount = 2199.00m,
@@ -90,7 +89,7 @@ public class CardTransactionsService : ICardTransactionsService
             FromAccount = "****1234",
             ToAccount = string.Empty,
         },
-        new RawTransactionDto
+        new ()
         {
             Reference = "CARD-1007",
             Amount = 760.50m,
@@ -104,7 +103,7 @@ public class CardTransactionsService : ICardTransactionsService
             FromAccount = "****1234",
             ToAccount = string.Empty,
         },
-        new RawTransactionDto
+        new ()
         {
             Reference = "CARD-1008",
             Amount = 485.00m,
@@ -118,7 +117,7 @@ public class CardTransactionsService : ICardTransactionsService
             FromAccount = "****1234",
             ToAccount = string.Empty,
         },
-        new RawTransactionDto
+        new ()
         {
             Reference = "CARD-1009",
             Amount = 240.00m,
@@ -132,7 +131,7 @@ public class CardTransactionsService : ICardTransactionsService
             FromAccount = "****1234",
             ToAccount = string.Empty,
         },
-        new RawTransactionDto
+        new ()
         {
             Reference = "CARD-1010",
             Amount = 1320.45m,
@@ -145,6 +144,5 @@ public class CardTransactionsService : ICardTransactionsService
             Direction = "DEBIT",
             FromAccount = "****1234",
             ToAccount = string.Empty,
-        }
-    ];
+        }];
 }

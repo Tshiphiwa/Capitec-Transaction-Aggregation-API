@@ -5,8 +5,7 @@ namespace Capitec_Transaction_Aggregation_API.Services.Interfaces;
 
 public interface ITransactionMapper
 {
-    Transaction MapToTransaction(RawTransactionDto raw, TransactionSource source, ICategorizationService categorizationService, ILogger logger);
-    void ApplyDefaultCategorization(Transaction transaction, ICategorizationService categorizationService);
-    TransactionType MapTransactionType(string rawType, ILogger logger);
-    TransactionDirection MapTransactionDirection(string rawDirection, ILogger logger);
+    TransactionDto MapToDto(Transaction transaction);
+    TransactionType MapTransactionType(string rawType);
+    TransactionDirection MapTransactionDirection(string rawDirection);
 }

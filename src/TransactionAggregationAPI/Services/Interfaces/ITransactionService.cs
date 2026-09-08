@@ -10,5 +10,4 @@ public interface ITransactionService
     Task<SummaryDto> GetTransactionSummaryAsync(TransactionFilterDto filter);
     Task<AggregatedTransactionDto> GetAggregatedTransactionsAsync(TransactionFilterDto filter);
     Task<TransactionDto> UpdateCategoryAsync(Guid transactionId, string newCategory, UserRole userRole);
-    Task<List<TransactionSourceDto>> GetSourcesAsync();
 }

@@ -3,7 +3,7 @@ using Capitec_Transaction_Aggregation_API.Models;
 
 namespace Capitec_Transaction_Aggregation_API.Services.Interfaces;
 
-public interface ITransactionIngestionProcessor
+public interface IHealthService
 {
-    Task<SourceIngestionResult> ProcessAsync(TransactionSource source, CancellationToken cancellationToken = default);
+    Task<(bool IsHealthy, HealthDto Health)> GetHealthAsync();
 }

@@ -1,13 +1,12 @@
 using Capitec_Transaction_Aggregation_API.DTOs;
 
-namespace Capitec_Transaction_Aggregation_API.Services;
+namespace Capitec_Transaction_Aggregation_API.MockSources.Data;
 
-public class EftTransactionsService : IEftTransactionsService
+public static class EftTransactionData
 {
-    public IReadOnlyList<RawTransactionDto> GetTransactions() =>
-    [
-        // Month 1: salary + expenses
-        new RawTransactionDto
+    public static IReadOnlyList<RawTransactionDto> Get() =>
+    [        // Month 1: salary + expenses
+        new ()
         {
             Reference = "EFT-2001",
             Amount = 25000.00m,
@@ -21,7 +20,7 @@ public class EftTransactionsService : IEftTransactionsService
             FromAccount = "****5678",
             ToAccount = "****1234",
         },
-        new RawTransactionDto
+        new ()
         {
             Reference = "EFT-2002",
             Amount = 12000.00m,
@@ -35,7 +34,7 @@ public class EftTransactionsService : IEftTransactionsService
             FromAccount = "****1234",
             ToAccount = "****9087",
         },
-        new RawTransactionDto
+        new ()
         {
             Reference = "EFT-2003",
             Amount = 1450.00m,
@@ -49,7 +48,7 @@ public class EftTransactionsService : IEftTransactionsService
             FromAccount = "****1234",
             ToAccount = "****7711",
         },
-        new RawTransactionDto
+        new ()
         {
             Reference = "EFT-2004",
             Amount = 3500.00m,
@@ -63,7 +62,7 @@ public class EftTransactionsService : IEftTransactionsService
             FromAccount = "****1234",
             ToAccount = "****3344",
         },
-        new RawTransactionDto
+        new ()
         {
             Reference = "EFT-2005",
             Amount = 170.00m,
@@ -79,7 +78,7 @@ public class EftTransactionsService : IEftTransactionsService
         },
 
         // Month 2
-        new RawTransactionDto
+        new ()
         {
             Reference = "EFT-2006",
             Amount = 25000.00m,
@@ -93,7 +92,7 @@ public class EftTransactionsService : IEftTransactionsService
             FromAccount = "****5678",
             ToAccount = "****1234",
         },
-        new RawTransactionDto
+        new ()
         {
             Reference = "EFT-2007",
             Amount = 12000.00m,
@@ -107,7 +106,7 @@ public class EftTransactionsService : IEftTransactionsService
             FromAccount = "****1234",
             ToAccount = "****9087",
         },
-        new RawTransactionDto
+        new ()
         {
             Reference = "EFT-2008",
             Amount = 4250.00m,
@@ -121,7 +120,7 @@ public class EftTransactionsService : IEftTransactionsService
             FromAccount = "****1234",
             ToAccount = "****1415",
         },
-        new RawTransactionDto
+        new ()
         {
             Reference = "EFT-2009",
             Amount = 2800.00m,
@@ -137,7 +136,7 @@ public class EftTransactionsService : IEftTransactionsService
         },
 
         // Month 3
-        new RawTransactionDto
+        new ()
         {
             Reference = "EFT-2010",
             Amount = 25000.00m,
@@ -151,7 +150,7 @@ public class EftTransactionsService : IEftTransactionsService
             FromAccount = "****5678",
             ToAccount = "****1234",
         },
-        new RawTransactionDto
+        new ()
         {
             Reference = "EFT-2011",
             Amount = 12000.00m,
@@ -165,7 +164,7 @@ public class EftTransactionsService : IEftTransactionsService
             FromAccount = "****1234",
             ToAccount = "****9087",
         },
-        new RawTransactionDto
+        new ()
         {
             Reference = "EFT-2012",
             Amount = 799.00m,
@@ -179,7 +178,7 @@ public class EftTransactionsService : IEftTransactionsService
             FromAccount = "****1234",
             ToAccount = "****3333",
         },
-        new RawTransactionDto
+        new ()
         {
             Reference = "EFT-2013",
             Amount = 650.00m,
@@ -195,7 +194,7 @@ public class EftTransactionsService : IEftTransactionsService
         },
 
         // Matches no keyword - uncategorised
-        new RawTransactionDto
+        new ()
         {
             Reference = "EFT-2014",
             Amount = 480.00m,
@@ -208,6 +207,5 @@ public class EftTransactionsService : IEftTransactionsService
             Direction = "DEBIT",
             FromAccount = "****1234",
             ToAccount = "****9999",
-        }
-    ];
+        }];
 }

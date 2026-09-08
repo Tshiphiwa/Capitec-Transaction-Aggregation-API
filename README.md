@@ -1,483 +1,269 @@
-# Capitec Transaction Aggregation API
+# Transaction Aggregation API
 
-> A production-oriented .NET 8 Web API for aggregating and categorizing customer transaction data from multiple financial sources. Built with clean architecture, security, and operational readiness in mind.
+![CI](https://github.com/<your-username>/capiTransactionApi/actions/workflows/ci.yml/badge.svg)
+[![codecov](https://codecov.io/gh/<your-username>/capiTransactionApi/branch/main/graph/badge.svg)](https://codecov.io/gh/<your-username>/capiTransactionApi)
+![.NET](https://img.shields.io/badge/.NET-8.0-512BD4)
+![License](https://img.shields.io/badge/license-MIT-blue)
+![Docker](https://img.shields.io/badge/docker-ready-2496ED)
 
----
+A .NET 8 Web API that pulls transaction data from multiple bank source systems, categorises each transaction, and lets you query and aggregate the results.
 
-## Table of Contents
+## Why I chose this brief
 
-- [Overview](#overview)
-- [Architecture](#architecture)
-- [Tech Stack](#tech-stack)
-- [Features](#features)
-- [Prerequisites](#prerequisites)
-- [Quick Start](#quick-start)
-- [Configuration](#configuration)
-- [Running the Application](#running-the-application)
-- [API Documentation](#api-documentation)
-- [Authentication](#authentication)
-- [Testing](#testing)
-- [Docker Deployment](#docker-deployment)
-- [Health Checks](#health-checks)
-- [Security](#security)
-- [Project Structure](#project-structure)
-- [Contributing](#contributing)
-- [License](#license)
-
----
-
-## Overview
-
-The **Capitec Transaction Aggregation API** is a .NET 8 Web API that ingests transaction data from multiple mocked upstream financial systems, normalizes payloads, assigns categories based on MCC codes and keyword rules, and exposes the data through a secure, queryable API surface.
-
-### Problem Statement
-
-Capitec needs a unified view of customer transactions across disparate systems (EFT, card payments, digital wallets). This API solves that by providing:
-- **Multi-source ingestion** from mocked EFT, card, and wallet transaction systems
-- **Automatic categorization** using MCC codes and merchant keyword matching
-- **Secure, authenticated access** with JWT tokens
-- **Production-ready observability** with structured logging, correlation IDs, and health checks
-
----
+I picked the Transaction Aggregation API over the other two options because it felt like the most foundational problem. A fraud engine needs clean, categorised transaction data to work. Account statements need aggregated history. I wanted to show I can build that data layer properly before anything else sits on top of it.
 
 ## Architecture
 
-The solution follows **Clean Architecture** principles with clear separation of concerns:
-
 ```
-┌─────────────────────────────────────────────────────────────┐
-│                      Controllers                            │
-│  Auth │ Health │ Sources │ Transactions                      │
-└──────────────────────────┬──────────────────────────────────┘
-                           ▼
-┌─────────────────────────────────────────────────────────────┐
-│                       Services                              │
-│  Auth │ Categorization │ Ingestion │ Transaction            │
-└──────────────────────────┬──────────────────────────────────┘
-                           ▼
-┌─────────────────────────────────────────────────────────────┐
-│                    Infrastructure                           │
-│  EF Core │ PostgreSQL │ Migrations │ Seeding                │
-└─────────────────────────────────────────────────────────────┘
+┌─────────────┐     POST /ingest      ┌──────────────────────┐
+│   Client    │ ───────────────────▶  │  IngestionService    │
+│  (Swagger)  │                       │  - fetch from sources│
+└─────────────┘                       │  - deduplicate       │
+       │                              │  - categorise        │
+       │ GET /transactions            └──────────┬───────────┘
+       │ GET /summary                            │
+       ▼                                         ▼
+┌─────────────────┐              ┌───────────────────────────┐
+│ TransactionSvc  │◀─────────────│   CategorizationService   │
+│ - filter        │              │   1. MCC code lookup      │
+│ - paginate      │              │   2. Keyword fallback     │
+│ - aggregate     │              │   3. Uncategorised        │
+└────────┬────────┘              └───────────────────────────┘
+         │
+         ▼
+┌─────────────────┐     ┌──────────────────────────────────┐
+│   PostgreSQL    │     │         Mock Sources              │
+│   (EF Core)     │     │  CARD (MCC) │ EFT │ WALLET (mix) │
+└─────────────────┘     └──────────────────────────────────┘
 ```
 
-### Layer Responsibilities
+## Getting started
 
-| Layer | Components | Responsibility |
-|-------|------------|----------------|
-| **Presentation** | Controllers, Middleware | HTTP handling, request/response serialization, correlation IDs, exception handling |
-| **Application** | Services, DTOs | Business logic, categorization rules, ingestion orchestration, transaction queries |
-| **Domain** | Models, Enums | Core entities (Transaction, User, TransactionSource), business rules |
-| **Infrastructure** | EF Core, Repositories | Data persistence, migrations, database seeding |
-
----
-
-## Tech Stack
-
-| Category | Technology | Version |
-|----------|------------|---------|
-| **Runtime** | .NET | 8.0 LTS |
-| **Framework** | ASP.NET Core | 8.0 |
-| **Database** | PostgreSQL | 15 |
-| **ORM** | Entity Framework Core | 8.0 |
-| **Auth** | JWT Bearer Tokens | - |
-| **Logging** | Serilog | 3.x |
-| **API Docs** | Swagger/OpenAPI | - |
-| **Containerization** | Docker & Docker Compose | - |
-| **Testing** | xUnit, Moq, FluentAssertions | - |
-| **Security Scan** | Trivy (Aqua Security) | - |
-
----
-
-## Features
-
-### Core Functionality
-- ✅ **Multi-source transaction ingestion** (EFT, Card, Wallet mock sources)
-- ✅ **Automatic categorization** via MCC codes + merchant keyword rules
-- ✅ **Paginated, filterable transaction queries** (date range, source, category, amount)
-- ✅ **Transaction summaries** with category breakdowns
-- ✅ **Source management** (list configured sources, trigger ingestion)
-
-### Security & Auth
-- ✅ **JWT-based authentication** with secure key management
-- ✅ **Protected endpoints** requiring valid Bearer tokens
-- ✅ **Environment-based secrets** (no secrets in source control)
-- ✅ **Restricted CORS** for controlled client access
-
-### Observability & Operations
-- ✅ **Structured logging** with Serilog (JSON format)
-- ✅ **Correlation IDs** on every request for distributed tracing
-- ✅ **Health & readiness endpoints** (`/health`, `/ready`)
-- ✅ **Centralized exception handling** with consistent error responses
-- ✅ **Non-root Docker container** for runtime security
-
-### Quality Assurance
-- ✅ **Automated test suite** (unit + integration tests)
-- ✅ **Database migrations** for versioned schema changes
-- ✅ **Vulnerability scanning** with Trivy
-- ✅ **Code analysis** via `dotnet format` / analyzers
-
----
-
-## Prerequisites
-
-| Tool | Version | Install |
-|------|---------|---------|
-| .NET SDK | 8.0+ | [Download](https://dotnet.microsoft.com/download/dotnet/8.0) |
-| Docker Desktop / Engine | 24.0+ | [Download](https://www.docker.com/products/docker-desktop/) |
-| PostgreSQL Client (optional) | 15+ | [Download](https://www.postgresql.org/download/) |
-| Git | 2.40+ | [Download](https://git-scm.com/) |
-
----
-
-## Quick Start
-
-### Option 1: Docker Compose (Recommended)
+You need Docker and Docker Compose installed.
 
 ```bash
-# 1. Clone the repository
-git clone <repository-url>
+git clone <repo-url>
 cd Capitec-Transaction-Aggregation-API
-
-# 2. Create environment file from template
 cp .env.example .env
+```
 
-# 3. Edit .env with your values (see Configuration section)
-# 4. Start the stack
+The `.env.example` file includes working defaults for the database. The only value you must change before running is `JWT_KEY`. Replace it with any random string of at least 32 characters.
+
+```bash
 docker compose up --build
 ```
 
-**Access points:**
-- API: `http://localhost:8080`
-- Swagger UI: `http://localhost:8080/swagger`
-- Health: `http://localhost:8080/health`
+Once it starts, open http://localhost:8080 in your browser. Swagger UI loads automatically.
 
----
+## How to use it
 
-### Option 2: Local Development (No Docker)
-
-```bash
-# 1. Restore dependencies
-dotnet restore
-
-# 2. Create and configure .env file
-cp .env.example .env
-# Edit .env with your local PostgreSQL connection details
-
-# 3. Apply database migrations
-dotnet ef database update --project src/TransactionAggregationAPI/Capitec-Transaction-Aggregation-API.csproj
-
-# 4. Run the API
-dotnet run --project src/TransactionAggregationAPI/Capitec-Transaction-Aggregation-API.csproj
-```
-
-**Access points:**
-- HTTPS: `https://localhost:5001`
-- HTTP: `http://localhost:5000`
-- Swagger UI: `https://localhost:5001/swagger`
-
----
-
-## Configuration
-
-The application uses **environment variables** for secrets and **appsettings.json** for non-sensitive configuration.
-
-### Environment Variables (`.env`)
-
-Create from template:
-```bash
-cp .env.example .env
-```
-
-Required variables:
-
-| Variable | Description | Example |
-|----------|-------------|---------|
-| `DB_NAME` | PostgreSQL database name | `capitec_transactions` |
-| `DB_USER` | Database username | `postgres` |
-| `DB_PASSWORD` | Database password | `secure_password_123` |
-| `DB_HOST` | Database host (Docker: `db`, Local: `localhost`) | `db` |
-| `DB_PORT` | Database port | `5432` |
-| `JWT_KEY` | Signing key (min 256 bits) | `your-super-secret-key-at-least-32-chars` |
-| `JWT_ISSUER` | Token issuer | `CapitecTransactionAPI` |
-| `JWT_AUDIENCE` | Token audience | `CapitecTransactionAPI` |
-| `ASPNETCORE_ENVIRONMENT` | Runtime environment | `Development` / `Production` |
-
-### App Settings (`appsettings.json`)
-
-Non-sensitive configuration:
-- Connection string template (placeholders replaced at runtime)
-- Serilog logging levels
-- CORS allowed origins
-- Swagger configuration
-
----
-
-## Running the Application
-
-### Development Mode
-
-```bash
-# With hot reload
-dotnet watch run --project src/TransactionAggregationAPI/Capitec-Transaction-Aggregation-API.csproj
-```
-
-### Production Build
-
-```bash
-# Build optimized release
-dotnet publish src/TransactionAggregationAPI/Capitec-Transaction-Aggregation-API.csproj -c Release -o ./publish
-
-# Build Docker image
-docker build -t capitec-transaction-api:latest .
-```
-
-### Database Migrations
-
-```bash
-# Create new migration
-dotnet ef migrations add MigrationName --project src/TransactionAggregationAPI/Capitec-Transaction-Aggregation-API.csproj
-
-# Apply migrations
-dotnet ef database update --project src/TransactionAggregationAPI/Capitec-Transaction-Aggregation-API.csproj
-
-# Remove last migration
-dotnet ef migrations remove --project src/TransactionAggregationAPI/Capitec-Transaction-Aggregation-API.csproj
-```
-
----
-
-## API Documentation
-
-### Swagger / OpenAPI
-
-Interactive API documentation is available at:
-- **Local**: `https://localhost:5001/swagger`
-- **Docker**: `http://localhost:8080/swagger`
-
-### Base URL
-
-| Environment | Base URL |
-|-------------|----------|
-| Local (HTTPS) | `https://localhost:5001` |
-| Local (HTTP) | `http://localhost:5000` |
-| Docker | `http://localhost:8080` |
-
-### Endpoints Overview
-
-| Method | Endpoint | Description | Auth |
-|--------|----------|-------------|------|
-| `GET` | `/health` | Liveness probe | ❌ |
-| `GET` | `/ready` | Readiness probe (checks DB) | ❌ |
-| `GET` | `/api/health` | Detailed health info | ❌ |
-| `POST` | `/api/auth/login` | Obtain JWT token | ❌ |
-| `GET` | `/api/transactions` | List transactions (paginated) | ✅ |
-| `GET` | `/api/transactions/{id}` | Get transaction by ID | ✅ |
-| `GET` | `/api/transactions/summary` | Category breakdown summary | ✅ |
-| `GET` | `/api/sources` | List configured sources | ✅ |
-| `POST` | `/api/sources/ingest` | Trigger ingestion from all sources | ✅ |
-
----
-
-## Authentication
-
-The API uses **JWT Bearer tokens**. Include the token in the `Authorization` header:
-
-```
-Authorization: Bearer <your-jwt-token>
-```
-
-### Login
+**1. Log in**
 
 ```http
-POST /api/auth/login
+POST http://localhost:8080/api/auth/login
 Content-Type: application/json
 
 {
-  "username": "admin",
+  "email": "admin@capitec.com",
   "password": "Password123!"
 }
 ```
 
-**Response:**
-```json
-{
-  "token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
-  "expiresAt": "2026-09-07T15:30:00Z"
-}
+Copy the `token` from the response.
+
+**2. Authorise in Swagger**
+
+Click the Authorize button at the top of the Swagger page, paste `Bearer <your-token>` and click Authorize. All requests you make from Swagger after that will include your token.
+
+**3. Load some data**
+
+```http
+POST http://localhost:8080/api/transactions/ingest
+Authorization: Bearer <your-token>
 ```
 
-### Default Test Credentials
+This fetches transactions from all three mock sources, categorises them and saves them to the database. Run it once after startup.
 
-| Username | Password | Role |
-|----------|----------|------|
-| `admin` | `Password123!` | Administrator |
+**4. Start querying**
 
-> **Note**: In production, use strong passwords and rotate the `JWT_KEY` regularly.
+```http
+GET http://localhost:8080/api/transactions
+GET http://localhost:8080/api/transactions?category=Dining
+GET http://localhost:8080/api/transactions?sourceCode=CARD&from=2024-01-01
+GET http://localhost:8080/api/transactions/summary
+GET http://localhost:8080/api/transactions/aggregated
+GET http://localhost:8080/api/transactions/{id}
+GET http://localhost:8080/api/sources
+GET http://localhost:8080/api/health
+```
 
----
+To override a category (Admin only):
 
-## Testing
+```http
+PATCH http://localhost:8080/api/transactions/{id}/category
+Content-Type: application/json
+{ "category": "Dining" }
+```
 
-### Run All Tests
+## Running the tests
 
 ```bash
-# From repository root
-dotnet test --nologo
+dotnet test
 ```
 
-### Run with Coverage
+There are 72 unit tests covering MCC categorisation, keyword fallback, edge cases like null and empty inputs, role checks, not-found scenarios, JWT token generation, transaction mapping, source listing, ingestion deduplication, partial source failure, filter and pagination behaviour, and summary and aggregation calculations.
 
-```bash
-dotnet test --collect:"XPlat Code Coverage" --results-directory ./coverage
-```
+## How it works
 
-### Test Categories
-
-| Test Project | Description |
-|--------------|-------------|
-| `TransactionAggregationApi.Tests` | Unit & integration tests for services, controllers, middleware |
-
-### Test Environment
-
-Tests run under the `Testing` environment using **EF Core In-Memory provider** (no PostgreSQL required).
-
----
-
-## Docker Deployment
-
-### Run Production Stack
-
-```bash
-docker compose -f docker-compose.yml up --build -d
-```
-
-### View Logs
-
-```bash
-docker compose logs -f api
-```
-
-### Security Scanning
-
-```bash
-# Scan built image for vulnerabilities
-trivy image capitec-transaction-api:latest
-
-# Scan with severity filter
-trivy image --severity HIGH,CRITICAL capitec-transaction-api:latest
-```
-
----
-
-## Health Checks
-
-| Endpoint | Purpose | Dependencies Checked |
-|----------|---------|---------------------|
-| `GET /health` | Liveness (k8s livenessProbe) | None - process alive |
-| `GET /ready` | Readiness (k8s readinessProbe) | Database connectivity |
-| `GET /api/health` | Detailed status | DB, configuration, uptime |
-
-### Example Response
-
-```json
-{
-  "status": "Healthy",
-  "checks": [
-    {
-      "name": "Database",
-      "status": "Healthy",
-      "description": "PostgreSQL connection successful"
-    }
-  ],
-  "totalDuration": "00:00:00.045"
-}
-```
-
----
-
-## Security
-
-### Implemented Measures
-
-| Measure | Implementation |
-|---------|----------------|
-| **Secret Management** | Environment variables only, `.env` in `.gitignore` |
-| **Authentication** | JWT with HS256, configurable expiry |
-| **Authorization** | `[Authorize]` attribute on protected endpoints |
-| **CORS** | Restricted to configured origins only |
-| **Container** | Non-root user (`appuser`), read-only filesystem |
-| **Headers** | Security headers via middleware |
-| **Scanning** | Trivy vulnerability scanning in CI/CD |
-
-### Security Checklist for Production
-
-- [ ] Rotate `JWT_KEY` to a strong 256-bit secret
-- [ ] Use managed PostgreSQL (Azure Database, AWS RDS, etc.)
-- [ ] Enable TLS/SSL termination at reverse proxy
-- [ ] Configure rate limiting
-- [ ] Set up audit logging for auth events
-- [ ] Run Trivy scan on every build
-- [ ] Review and restrict CORS origins
-
----
-
-## Project Structure
+**Project structure**
 
 ```
-Capitec-Transaction-Aggregation-API/
-├── .github/                    # GitHub Actions workflows (if any)
-├── src/
-│   └── TransactionAggregationAPI/
-│       ├── Controllers/        # API endpoints
-│       │   ├── AuthController.cs
-│       │   ├── HealthController.cs
-│       │   ├── SourcesController.cs
-│       │   ├── TransactionController.cs
-│       │   └── MockSources/    # Mock upstream systems
-│       ├── Services/           # Business logic
-│       │   ├── AuthService.cs
-│       │   ├── CategorizationService.cs
-│       │   ├── IngestionService.cs
-│       │   └── TransactionService.cs
-│       ├── Models/             # Domain entities
-│       │   ├── Transaction.cs
-│       │   ├── User.cs
-│       │   ├── TransactionSource.cs
-│       │   └── Enums.cs
-│       ├── DTOs/               # Request/Response contracts
-│       ├── Infrastructure/     # EF Core, Repositories
-│       │   ├── Data/
-│       │   ├── Migrations/
-│       │   └── Repositories/
-│       ├── Middleware/         # Cross-cutting concerns
-│       │   ├── CorrelationIdMiddleware.cs
-│       │   └── ExceptionHandlingMiddleware.cs
-│       ├── Extensions/         # DI registration
-│       ├── Properties/
-│       ├── appsettings.json
-│       ├── appsettings.Development.json
-│       ├── appsettings.Local.json
-│       ├── Program.cs
-│       └── Dockerfile
-├── tests/
-│   └── TransactionAggregationApi.Tests/
-├── docker-compose.yml
-├── .env.example
-├── .dockerignore
-├── .gitignore
-├── TransactionAggregationAPI.sln
-└── README.md
+src/TransactionAggregationAPI/
+    Controllers/      request handling
+    Services/         business logic
+    Models/           database entities
+    DTOs/             request and response shapes
+    Middleware/       error handling, correlation IDs
+    MockSources/      simulated bank systems
+    Infrastructure/   database context, MCC map, seeder
+tests/
+    TransactionAggregationApi.Tests/
 ```
 
----
+I kept everything in one project rather than splitting into separate layers because the scope does not justify the extra overhead. The separation is still there though. Controllers do not touch the database. Services do not know about HTTP. If this grew into something bigger with multiple teams, I would split it up.
 
-## References used
+**How transactions get categorised**
 
-- [Production Readiness Guide](https://medium.com/@soukainaguassmi/how-to-make-your-application-production-ready-a-practical-guide-81a7f50fad22)
-- [What Does Production Ready Actually Mean?](https://www.mindstudio.ai/blog/what-does-production-ready-actually-mean)
-- [Meaningful Git Commit Messages](https://medium.com/@iambonitheuri/the-art-of-writing-meaningful-git-commit-messages-a56887a4cb49)
-- [JWT Authentication Guide](https://kristine-a-du.medium.com/step-by-step-guide-for-implementing-api-authentication-with-json-web-tokens-jwt-626f50449e4c)
-- [Serilog Complete Guide](https://elanchezhiyan-p.medium.com/mastering-serilog-in-net-the-complete-guide-2025-edition-fb9b0be855cb)
+Every card transaction comes with a 4-digit MCC code assigned by Visa or Mastercard. The first thing the categorisation service does is look that code up in a dictionary. If it finds a match, that is the category.
 
----
+EFT transfers and salary payments do not have MCC codes. For those, the service scans the transaction description for keywords. "SALARY" maps to Income, "VODACOM" maps to Utilities, "RESTAURANT" maps to Dining, and so on.
+
+If neither method finds a match, the transaction is marked Uncategorised. That is intentional. It is better to be honest about what we do not know than to guess wrong.
+
+Every transaction also stores how its category was determined, whether that was an MCC lookup, a keyword match, a manual override, or left uncategorised. This makes the categorisation auditable and gives you the data you need to improve the keyword list over time.
+
+**Mock data sources**
+
+The three mock sources are internal controllers that return hardcoded data. The ingestion service calls them over HTTP the same way it would call a real downstream system. Swapping a mock for a real source means changing one URL in the database.
+
+| Source | Code | Transactions | Has MCC codes |
+|--------|------|-------------|---------------|
+| Card Processing System | CARD | 10 | Yes |
+| EFT Payment System | EFT | 14 | No |
+| Digital Wallet System | WALLET | 8 | Mixed |
+
+**Deduplication**
+
+Each transaction is identified by its reference number plus which source it came from. Before saving anything, the ingestion service checks if that combination already exists. If it does, the transaction is skipped. You can call the ingest endpoint as many times as you want and it will never create duplicates.
+
+## Design decisions
+
+**Single project over layered architecture**
+
+The scope is small enough that a separate Application, Domain and Infrastructure project would add navigation overhead without adding clarity. The boundaries are still enforced. Controllers never touch EF Core and services never reference HttpContext. They live in folders rather than assemblies. If this grew into a multi-team codebase I would split it.
+
+**MCC-first, keyword fallback, then Uncategorised**
+
+MCC codes are the most reliable signal because they are assigned by the card networks, not the merchant. Keywords are a reasonable fallback for EFT and salary transactions that have no MCC. Marking anything unmatched as Uncategorised rather than guessing keeps the data honest and gives an operator a clear queue to work through.
+
+**Storing the categorisation method**
+
+Every transaction records whether its category came from an MCC lookup, a keyword match, a manual override, or was left uncategorised. This makes the categorisation auditable and gives you the data you need to improve the keyword list over time.
+
+**HTTP calls to mock sources instead of direct method calls**
+
+The ingestion service calls mock sources over HTTP rather than calling their methods directly. This means swapping a mock for a real downstream system is a one-line config change, and the integration path is already tested.
+
+**Offset pagination over cursor-based**
+
+Offset pagination is simpler to implement and good enough for the data volumes here. At scale, with millions of transactions, I would switch to cursor-based pagination to avoid the performance cliff that comes with large offsets.
+
+## Endpoints
+
+| Method | Endpoint | Auth | What it does |
+|--------|----------|------|--------------|
+| POST | /api/auth/login | None | Log in and get a token |
+| GET | /api/transactions | Required | Paginated list with filters |
+| GET | /api/transactions/{id} | Required | Single transaction |
+| GET | /api/transactions/summary | Required | Totals, net amount, spend by category |
+| GET | /api/transactions/aggregated | Required | Grouped by category with percentages |
+| PATCH | /api/transactions/{id}/category | Admin | Override a category |
+| POST | /api/transactions/ingest | Admin | Pull data from all sources |
+| GET | /api/sources | Required | All sources with transaction counts |
+| GET | /api/health | None | Health check |
+
+**Filter options for GET /api/transactions**
+
+| Parameter | Type | Notes |
+|-----------|------|-------|
+| page | int | Defaults to 1 |
+| pageSize | int | Defaults to 20, max 100 |
+| category | string | e.g. Dining, Groceries |
+| sourceCode | string | CARD, EFT or WALLET |
+| transactionType | string | CardSwipe, EftTransfer, etc |
+| direction | string | Debit or Credit |
+| from | datetime | Start date |
+| to | datetime | End date |
+| minAmount | decimal | |
+| maxAmount | decimal | |
+| search | string | Searches description and merchant name |
+
+## Environment variables
+
+Copy `.env.example` to `.env` and fill in the values before running `docker compose up`.
+
+| Variable | Required | Description |
+|----------|----------|-------------|
+| `DB_NAME` | Yes | PostgreSQL database name |
+| `DB_USER` | Yes | PostgreSQL username |
+| `DB_PASSWORD` | Yes | PostgreSQL password |
+| `JWT_KEY` | Yes | Secret key used to sign JWT tokens. Use a long random string in production |
+
+The `Jwt__Issuer` and `Jwt__Audience` values are set directly in `docker-compose.yml` and do not need to be in `.env`.
+
+## What is already in place for production
+
+- Structured logging with Serilog, rolling daily log files
+- Every request gets a correlation ID that appears in all related log lines
+- A global error handler catches every unhandled exception and returns clean JSON with no stack traces
+- FluentValidation on all request inputs
+- JWT authentication on every endpoint except health and login
+- Admin and Analyst roles, category overrides are Admin only
+- Database migrations run automatically on startup
+- EF Core retries failed database connections up to 3 times
+- Health check at /api/health returns 503 if the database is down
+- Composite unique index on reference and source prevents duplicate ingestion
+- Multi-stage Docker build, final image is around 200MB
+- All secrets come from environment variables
+
+## Licence
+
+This project is licensed under the [MIT License](LICENSE).
+
+## What I would add with more time
+
+- Refresh tokens so users do not have to log in again after 8 hours
+- Rate limiting on the ingest endpoint
+- Cursor-based pagination instead of offset pagination for better performance at scale
+- Integration tests that run against a real database
+- OpenTelemetry for distributed tracing
+- AWS deployment using ECS and Terraform, which matches what I do in my current role
+
+## Default login
+
+Email: admin@capitec.com  
+Password: Password123!  
+Role: Admin
+
+The default password is hardcoded in `DatabaseSeeder.cs` and seeded on first startup for local development and demo convenience only. In a production deployment you would remove the seeder, provision the admin user through a secure bootstrap process, and rotate the password immediately. We never use this credential in any environment exposed to the internet.
+
+## Tech stack
+
+- .NET 8, ASP.NET Core Web API
+- PostgreSQL 16, EF Core 8, Npgsql
+- JWT authentication
+- Serilog
+- FluentValidation
+- Swagger UI via Swashbuckle
+- xUnit, Moq, FluentAssertions
+- Docker, Docker Compose

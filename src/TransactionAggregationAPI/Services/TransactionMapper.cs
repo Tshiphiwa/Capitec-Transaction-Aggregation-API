@@ -31,14 +31,14 @@ public class TransactionMapper : ITransactionMapper
     {
         return tType.ToLowerInvariant() switch
         {
-            "CARD_SWIPE" => TransactionType.CardSwipe,
-            "EFT_CREDIT" => TransactionType.EftTransfer,
-            "EFT_DEBIT" => TransactionType.EftTransfer,
-            "WALLET_PAYMENT" => TransactionType.CardSwipe,
-            "WALLET_TRANSFER" => TransactionType.EftTransfer,
-            "EFT_TRANSFER" => TransactionType.EftTransfer,
-            "SALARY_CREDIT" => TransactionType.SalaryCredit,
-            "ATM_WITHDtAL" => TransactionType.AtmWithdrawal,
+            "card_swipe" => TransactionType.CardSwipe,
+            "eft_credit" => TransactionType.EftTransfer,
+            "eft_debit" => TransactionType.EftTransfer,
+            "wallet_payment" => TransactionType.CardSwipe,
+            "wallet_transfer" => TransactionType.EftTransfer,
+            "eft_transfer" => TransactionType.EftTransfer,
+            "salary_credit" => TransactionType.SalaryCredit,
+            "atm_withdrawal" => TransactionType.AtmWithdrawal,
             _ => TransactionType.EftTransfer
         };
     }
@@ -47,7 +47,7 @@ public class TransactionMapper : ITransactionMapper
     {
         return tDirection?.ToLowerInvariant() switch
         {
-            "CREDIT" => TransactionDirection.Credit,
+            "credit" => TransactionDirection.Credit,
             _ => TransactionDirection.Debit
         };
     }

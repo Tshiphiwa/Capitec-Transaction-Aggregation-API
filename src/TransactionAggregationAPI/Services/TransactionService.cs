@@ -18,13 +18,13 @@ public class TransactionService : ITransactionService
     public TransactionService(AppDbContext dbContext, ITransactionMapper transactionMapper, ILogger<TransactionService> logger)
     {
         _dbContext = dbContext;
-        _transactionMapper = _transactionMapper;
+        _transactionMapper = transactionMapper;
         _logger = logger ?? NullLogger<TransactionService>.Instance;
     }
 
     public async Task<PagedResultDto<TransactionDto>> GetTransactionsAsync(TransactionFilterDto filter)
     {
-        var pageSize = Math.Min(filter.PageSize, MaxPageSize);
+        var pageSize = filter.PageSize == 0 ? MaxPageSize : Math.Min(filter.PageSize, MaxPageSize);
         var page = Math.Max(filter.Page, 1);
 
         var query = _dbContext.Transactions
@@ -68,7 +68,7 @@ public class TransactionService : ITransactionService
 
         var totalCount = await query.CountAsync();
         if (totalCount == 0)
-            return new SummaryDto { FromDate = filter.From, ToDate = filter. To };
+            return new SummaryDto { FromDate = filter.From, ToDate = filter.To, TopSpendingCategory = "None" };
 
         var totals = await query
             .GroupBy(_ => 1)
@@ -155,6 +155,8 @@ public class TransactionService : ITransactionService
             throw new KeyNotFoundException($"Transaction with ID {transactionId} not found.");
         }
 
+        if (string.IsNullOrWhiteSpace(newCategory))
+            throw new ArgumentException("Category cannot be empty.", nameof(newCategory));
         var oldCategory = transaction.Category;
         transaction.Category = newCategory;
         transaction.CategorySource = CategorySource.Manual;

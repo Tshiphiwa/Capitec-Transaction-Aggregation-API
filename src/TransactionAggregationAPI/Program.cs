@@ -67,6 +67,7 @@ try
             ValidateIssuer = true,
             ValidIssuer = jwtOptions.Issuer,
             ValidateAudience = true,
+            ValidAudience = jwtOptions.Audience,
             ValidateIssuerSigningKey = true,
             IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwtOptions.Key)),
             ValidateLifetime = true,
@@ -176,4 +177,4 @@ catch (Exception ex)
 finally
 {
     Log.CloseAndFlush();
-}
+}public partial class Program { }

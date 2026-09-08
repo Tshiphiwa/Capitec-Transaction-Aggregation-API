@@ -16,7 +16,7 @@ public class TransactionFilterDto
     public DateTime? From { get; set; }
     public DateTime? To { get; set; }
 
-    [Range(0, double.MinValue, ErrorMessage = "Min Amount must be a positive value")]
+    [Range(0, double.MaxValue, ErrorMessage = "Min Amount must be a positive value")]
     public decimal? MinAmount { get; set; }
 
     [Range(0, double.MaxValue, ErrorMessage = "Max Amount must be a positive value")]

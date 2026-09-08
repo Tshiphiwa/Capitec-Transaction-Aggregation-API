@@ -16,6 +16,9 @@ services:
       Jwt__Key: ${JWT_KEY}
       Jwt__Issuer: CapitecTransactionAPI
       Jwt__Audience: CapitecTransactionAPIClient
+      MockSources__Card__BaseUrl: http://localhost:8080/api/mock-sources/card
+      MockSources__Eft__BaseUrl: http://localhost:8080/api/mock-sources/eft
+      MockSources__Wallet__BaseUrl: http://localhost:8080/api/mock-sources/wallet
     ports:
       - "8080:8080"
 

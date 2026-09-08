@@ -14,18 +14,18 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-    -  uses: actions/checkout@v4
+    - uses: actions/checkout@v4
 
     - name: Setup .NET 8
-      uses: actions/checkout@v4
+      uses: actions/setup-dotnet@v4
       with:
         dotnet-version: '8.0.x'
     
     - name: Restore dependencies
-      run: dotnet restore   
+      run: dotnet restore
 
     - name: Build
-      run: dotnet restore --no-build --configuration
+      run: dotnet build --no-restore --configuration Release
 
     - name: Test with coverage
       run: dotnet test --no-build --configuration Release --verbosity normal --collect:"XPlat Code Coverage" --results-directory ./coverage
@@ -36,7 +36,7 @@ jobs:
         directory: './coverage'
         fail_ci_if_error: false
 
-    - name: Check for vulnerability NuGet packages
+    - name: Check for vulnerable NuGet packages
       run: dotnet list package --vulnerable --include-transitive 2>&1 | tee vuln.txt && ! grep -q "has the following vulnerable packages" vuln.txt
 
   docker:
@@ -48,7 +48,7 @@ jobs:
 
     - name: Build Docker image
       run: docker build -t capitec-transaction-aggregation-api:ci .
- 
+
   codeql:
     name: CodeQL
     runs-on: ubuntu-latest
@@ -59,17 +59,17 @@ jobs:
       - uses: actions/checkout@v4
 
       - name: Setup .NET 8
-        uses: actions/checkout@v4
+        uses: actions/setup-dotnet@v4
         with:
           dotnet-version: '8.0.x'
 
       - name: Initialize CodeQL
         uses: github/codeql-action/init@v3
         with:
-          languages: chsarp
+          languages: csharp
 
       - name: Build for CodeQL
-        run:  dotnet build --configuration Release
+        run: dotnet build --configuration Release
       
       - name: Perform CodeQL Analysis
         uses: github/codeql-action/analyze@v3

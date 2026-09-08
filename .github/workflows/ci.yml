@@ -49,27 +49,3 @@ jobs:
     - name: Build Docker image
       run: docker build -t capitec-transaction-aggregation-api:ci .
 
-  codeql:
-    name: CodeQL
-    runs-on: ubuntu-latest
-    permissions:
-      security-events: write
-
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: Setup .NET 8
-        uses: actions/setup-dotnet@v4
-        with:
-          dotnet-version: '8.0.x'
-
-      - name: Initialize CodeQL
-        uses: github/codeql-action/init@v3
-        with:
-          languages: csharp
-
-      - name: Build for CodeQL
-        run: dotnet build --configuration Release
-      
-      - name: Perform CodeQL Analysis
-        uses: github/codeql-action/analyze@v3

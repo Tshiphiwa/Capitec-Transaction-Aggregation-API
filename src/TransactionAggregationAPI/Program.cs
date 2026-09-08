@@ -127,7 +127,7 @@ try
     });
 
     // Lock Cors in prod and open only in dev
-    if (builder.Environment.IsDevelopment))
+    if (builder.Environment.IsDevelopment())
     {
         builder.Services.AddCors(options =>
             options.AddDefaultPolicy(policy =>

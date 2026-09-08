@@ -13,48 +13,34 @@ namespace Capitec_Transaction_Aggregation_API.Services;
 public class AuthService : IAuthService
 {
     private readonly AppDbContext _dbContext;
-    private readonly IConfiguration _configuration;
+    private readonly IJwtTokenService _jwtTokenService;
     private readonly ILogger<AuthService> _logger;
 
-    public AuthService(AppDbContext dbContext, IConfiguration configuration, ILogger<AuthService> logger)
+    public AuthService(AppDbContext dbContext, IJwtTokenService jwtTokenService, ILogger<AuthService> logger)
     {
         _dbContext = dbContext;
-        _configuration = configuration;
+        _jwtTokenService = jwtTokenService;
         _logger = logger;
     }
 
     public async Task<LoginResponseDto> LoginAsync(LoginRequestDto request)
     {
-        ArgumentNullException.ThrowIfNull(request);
-
-        if (string.IsNullOrWhiteSpace(request.Username) || string.IsNullOrWhiteSpace(request.Password))
-        {
-            throw new ArgumentException("Username and password are required.");
-        }
-
         var user = await _dbContext.Users
-            .FirstOrDefaultAsync(u => u.UserName == request.Username || u.Email == request.Username);
+            .FirstOrDefaultAsync(u => u.Email.ToLower() == request.Email.ToLower() && u.IsActive);
 
-        if (user is null || !user.IsActive)
+        if (user == null || !BCrypt.Net.BCrypt.Verify(request.Password, user.PasswordHash))
         {
-            _logger.LogWarning("Failed login attempt for username: {Username}", request.Username);
-            throw new UnauthorizedAccessException("Invalid username or password.");
-        }
-
-        if (!BCrypt.Net.BCrypt.Verify(request.Password, user.PasswordHash))
-        {
-            _logger.LogWarning("Failed login attempt for username: {Username}", request.Username);
-            throw new UnauthorizedAccessException("Invalid username or password.");
+            _logger.LogWarning("Failed login attempt for email: {Email}", request.Email);
+            throw new UnauthorizedAccessException("Invalid email or password.");
         }
 
         user.LastLoginDate = DateTime.UtcNow;
         user.LastUpdatedDate = DateTime.UtcNow;
         await _dbContext.SaveChangesAsync();
 
-        _logger.LogInformation("User {Username} logged in successfully with role {Role}", request.Username, user.Role);
+        _logger.LogInformation("User {Username} logged in successfully with role {Role}", user.UserName, user.Role);
 
-        var token = GenerateJwtToken(user);
-        var expiresAt = DateTime.UtcNow.AddHours(8);
+        var (token, expiresAt) = _jwtTokenService.GenerateToken(user);
 
         return new LoginResponseDto
         {
@@ -63,33 +49,5 @@ public class AuthService : IAuthService
             Username = user.UserName,
             Role = user.Role.ToString()
         };
-    }
-
-    private string GenerateJwtToken(Models.User user)
-    {
-        var jwtKey = _configuration["Jwt:Key"] ?? throw new InvalidOperationException("JWT key is not configured.");
-        var issuer = _configuration["Jwt:Issuer"] ?? throw new InvalidOperationException("JWT issuer is not configured.");
-        var audience = _configuration["Jwt:Audience"] ?? issuer;
-        var expiresAt = DateTime.UtcNow.AddHours(8);
-
-        var securityKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwtKey));
-        var credentials = new SigningCredentials(securityKey, SecurityAlgorithms.HmacSha256);
-
-        var claims = new List<Claim>
-        {
-            new(ClaimTypes.NameIdentifier, user.Id.ToString()),
-            new(ClaimTypes.Name, user.UserName),
-            new(ClaimTypes.Email, user.Email),
-            new(ClaimTypes.Role, user.Role.ToString())
-        };
-
-        var token = new JwtSecurityToken(
-            issuer: issuer,
-            audience: audience,
-            claims: claims,
-            expires: expiresAt,
-            signingCredentials: credentials);
-
-        return new JwtSecurityTokenHandler().WriteToken(token);
     }
 }

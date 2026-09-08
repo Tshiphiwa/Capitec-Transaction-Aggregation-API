@@ -1,3 +1,4 @@
+using System.Diagnostics.Tracing;
 using Capitec_Transaction_Aggregation_API.DTOs;
 using Capitec_Transaction_Aggregation_API.Infrastructure;
 using Capitec_Transaction_Aggregation_API.Models;
@@ -10,21 +11,24 @@ namespace Capitec_Transaction_Aggregation_API.Services;
 public class TransactionService : ITransactionService
 {
     private readonly AppDbContext _dbContext;
+    private readonly ITransactionMapper _transactionMapper;
     private readonly ILogger<TransactionService> _logger;
     private const int MaxPageSize = 100;
 
-    public TransactionService(AppDbContext dbContext, ILogger<TransactionService>? logger = null)
+    public TransactionService(AppDbContext dbContext, ITransactionMapper transactionMapper, ILogger<TransactionService> logger)
     {
         _dbContext = dbContext;
+        _transactionMapper = _transactionMapper;
         _logger = logger ?? NullLogger<TransactionService>.Instance;
     }
 
     public async Task<PagedResultDto<TransactionDto>> GetTransactionsAsync(TransactionFilterDto filter)
     {
-        var pageSize = filter.PageSize <= 0 ? 20 : Math.Min(filter.PageSize, MaxPageSize);
+        var pageSize = Math.Min(filter.PageSize, MaxPageSize);
         var page = Math.Max(filter.Page, 1);
 
         var query = _dbContext.Transactions
+            .AsNoTracking()
             .Include(t => t.Source)
             .AsQueryable();
 
@@ -39,12 +43,13 @@ public class TransactionService : ITransactionService
             .ToListAsync();
 
         return PagedResultDto<TransactionDto>.Create(
-            transactions.Select(MapToDto).ToList(), totalCount, page, pageSize);
+            transactions.Select(_transactionMapper.MapToDto).ToList(), totalCount, page, pageSize);
     }
 
     public async Task<TransactionDto?> GetTransactionByIdAsync(Guid transactionId)
     {
         var transaction = await _dbContext.Transactions
+            .AsNoTracking()
             .Include(t => t.Source)
             .FirstOrDefaultAsync(t => t.Id == transactionId);
 
@@ -53,7 +58,7 @@ public class TransactionService : ITransactionService
             throw new KeyNotFoundException($"Transaction with ID {transactionId} not found.");
         }
 
-        return MapToDto(transaction);
+        return _transactionMapper.MapToDto(transaction);
     }
 
     public async Task<SummaryDto> GetTransactionSummaryAsync(TransactionFilterDto filter)
@@ -61,68 +66,60 @@ public class TransactionService : ITransactionService
         var query = _dbContext.Transactions.AsQueryable();
         query = ApplyFilters(query, filter);
 
-        var transactions = await query.ToListAsync();
+        var totalCount = await query.CountAsync();
+        if (totalCount == 0)
+            return new SummaryDto { FromDate = filter.From, ToDate = filter. To };
 
-        if (!transactions.Any())
-        {
-            return new SummaryDto
+        var totals = await query
+            .GroupBy(_ => 1)
+            .Select(g => new
             {
-                FromDate = filter.From,
-                ToDate = filter.To,
-                TopSpendingCategory = "None"
-            };
-        }
+                TotalDebits = g.Where(t => t.Direction == TransactionDirection.Debit).Sum(t => t.Amount),
+                TotalCredits = g.Where(t => t.Direction == TransactionDirection.Credit).Sum(t => t.Amount),
+                Average = g.Average(t => t.Amount),
+                Count = g.Count()
+            })
+            .FirstAsync();
 
-        var debits = transactions.Where(t => t.Direction == TransactionDirection.Debit).ToList();
-        var credits = transactions.Where(t => t.Direction == TransactionDirection.Credit).ToList();
-
-        var totalDebits = debits.Sum(t => t.Amount);
-        var totalCredits = credits.Sum(t => t.Amount);
-
-        var spendByCategory = debits
+        var spendByCategory = await query
+            .Where(t => t.Direction == TransactionDirection.Debit)
             .GroupBy(t => t.Category)
-            .ToDictionary(g => g.Key, g => g.Sum(t => t.Amount));
+            .Select(g => new { Category = g.Key, Total = g.Sum(t => t.Amount) })
+            .ToDictionaryAsync(x => x.Category, x => x.Total);
 
-        var topSpendingCategory = spendByCategory.Any()
+        var topCategory = spendByCategory.Any()
             ? spendByCategory.OrderByDescending(x => x.Value).First().Key
             : "None";
 
         return new SummaryDto
         {
-            TotalDebits = totalDebits,
-            TotalCredits = totalCredits,
-            NetAmount = totalCredits - totalDebits,
-            TransactionCount = transactions.Count,
-            AverageTransactionAmount = transactions.Average(t => t.Amount),
+            TotalDebits = totals.TotalDebits,
+            TotalCredits = totals.TotalCredits,
+            NetAmount = totals.TotalCredits - totals.TotalDebits,
+            TransactionCount = totals.Count,
+            AverageTransactionAmount = totals.Average,
             SpendByCategory = spendByCategory,
-            TopSpendingCategory = topSpendingCategory,
+            TopSpendingCategory = topCategory,
             FromDate = filter.From,
             ToDate = filter.To
         };
     }
 
-    public async Task<AggregatedTransactionDto> GetAggregatedTransactionsAsync(TransactionFilterDto filter)
+    public async Task<AggregatedTransactionsDto> GetAggregatedTransactionsAsync(TransactionFilterDto filter)
     {
-        var query = _dbContext.Transactions.AsQueryable();
+        var query = _dbContext.Transactions.AsNoTracking().AsQueryable();
         query = ApplyFilters(query, filter);
 
         // Only consider debit transactions for aggregation since we are interested in spending patterns not income
-        var transactions = await query
-            .Where(t => t.Direction == TransactionDirection.Debit)
-            .ToListAsync();
+        var debitQuery = query.Where(t => t.Direction == TransactionDirection.Debit);    
 
-        if (!transactions.Any())
-        {
-            return new AggregatedTransactionDto
-            {
-                FromDate = filter.From,
-                ToDate = filter.To
-            };
-        }
+        var totalCount = await debitQuery.CountAsync();
+        if (totalCount == 0)
+            return new AggregatedTransactionsDto { FromDate = filter.From, ToDate = filter.To };
 
-        var grandTotal = transactions.Sum(t => t.Amount);
+        var grandTotal = await debitQuery.SumAsync(t => t.Amount);
 
-        var categories = transactions
+        var categories = await debitQuery
             .GroupBy(t => t.Category)
             .Select(g => new AggregatedCategoryDto
             {
@@ -135,30 +132,20 @@ public class TransactionService : ITransactionService
                 LastTransactionDate = g.Max(t => t.TransactionDate)
             })
             .OrderByDescending(c => c.TotalAmount)
-            .ToList();
+            .ToListAsync();
 
-        return new AggregatedTransactionDto
+        return new AggregatedTransactionsDto
         {
             Categories = categories,
             GrandTotal = grandTotal,
-            TotalTransactions = transactions.Count,
+            TotalTransactions = totalCount,
             FromDate = filter.From,
             ToDate = filter.To
         };
     }
 
-    public async Task<TransactionDto> UpdateCategoryAsync(Guid transactionId, string newCategory, UserRole userRole)
+    public async Task<TransactionDto> UpdateCategoryAsync(Guid transactionId, string newCategory)
     {
-        if (string.IsNullOrWhiteSpace(newCategory))
-        {
-            throw new ArgumentException("New category is required.", nameof(newCategory));
-        }
-
-        if (userRole != UserRole.Admin)
-        {
-            throw new UnauthorizedAccessException("Only Admin users can update transaction categories.");
-        }
-
         var transaction = await _dbContext.Transactions
             .Include(t => t.Source)
             .FirstOrDefaultAsync(t => t.Id == transactionId);
@@ -177,7 +164,7 @@ public class TransactionService : ITransactionService
 
         _logger.LogInformation("Transaction {TransactionId} category updated from {OldCategory} to {NewCategory} by user with role {UserRole}", transactionId, oldCategory, newCategory, userRole);
 
-        return MapToDto(transaction);
+        return _transactionMapper.MapToDto(transaction);
     }
 
     public async Task<List<TransactionSourceDto>> GetSourcesAsync()
@@ -203,54 +190,32 @@ public class TransactionService : ITransactionService
         if (!string.IsNullOrWhiteSpace(filter.SourceCode))
             query = query.Where(t => t.Source.Code == filter.SourceCode);
 
-        if (!string.IsNullOrWhiteSpace(filter.TransactionType))
-            query = query.Where(t => t.TransactionType.ToString() == filter.TransactionType);
+        if (Enum.TryParse<TransactionType>(filter.TransactionType, out var txType))
+            query = query.Where(t => t.TransactionType == txType);
 
-        if (!string.IsNullOrWhiteSpace(filter.Direction))
-            query = query.Where(t => t.Direction.ToString() == filter.Direction);
+        if (Enum.TryParse<TransactionDirection>(filter.Direction, out var direction))
+            query = query.Where(t => t.Direction == direction);
 
-        if (filter.From != default)
-            query = query.Where(t => t.TransactionDate >= filter.From);
+        if (filter.From.HasValue)
+            query = query.Where(t => t.TransactionDate >= filter.From.Value);
 
-        if (filter.To != default)
-            query = query.Where(t => t.TransactionDate <= filter.To);
+        if (filter.To.HasValue)
+            query = query.Where(t => t.TransactionDate <= filter.To.Value);
 
-        if (filter.MinAmount != 0)
+        if (filter.MinAmount.HasValue)
             query = query.Where(t => t.Amount >= filter.MinAmount);
 
-        if (filter.MaxAmount != 0)
+        if (filter.MaxAmount.HasValue)
             query = query.Where(t => t.Amount <= filter.MaxAmount);
 
         if (!string.IsNullOrWhiteSpace(filter.Search))
         {
-            var search = filter.Search.Trim();
+            var search = filter.Search.ToLower();
             query = query.Where(t =>
-                (t.Description != null && t.Description.Contains(search)) ||
-                (t.MerchantName != null && t.MerchantName.Contains(search)) ||
-                (t.Reference != null && t.Reference.Contains(search)));
+                t.Description.ToLower().Contains(search) ||
+                (t.MerchantName != null && t.MerchantName.ToLower().Contains(search)));
         }
 
         return query;
     }
-
-    private static TransactionDto MapToDto(Transaction t) => new()
-    {
-        Id = t.Id,
-        Amount = t.Amount,
-        Currency = t.Currency,
-        Description = t.Description,
-        MerchantName = t.MerchantName ?? string.Empty,
-        MccCode = t.MccCode ?? string.Empty,
-        Category = t.Category,
-        CategorySource = t.CategorySource.ToString(),
-        TransactionType = t.TransactionType.ToString(),
-        Direction = t.Direction.ToString(),
-        TransactionDate = t.TransactionDate,
-        Reference = t.Reference,
-        FromAccount = t.FromAccount,
-        ToAccount = t.ToAccount,
-        SourceCode = t.Source?.Code ?? string.Empty,
-        SourceName = t.Source?.Name ?? string.Empty,
-        CreatedAt = t.CreatedDate
-    };
 }

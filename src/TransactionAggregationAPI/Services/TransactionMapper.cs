@@ -6,58 +6,30 @@ namespace Capitec_Transaction_Aggregation_API.Services;
 
 public class TransactionMapper : ITransactionMapper
 {
-    public Transaction MapToTransaction(RawTransactionDto raw, TransactionSource source, ICategorizationService categorizationService, ILogger logger)
+    public TransactionDto MapToDto(Transaction t) => new ()
     {
-        ArgumentNullException.ThrowIfNull(raw);
-        ArgumentNullException.ThrowIfNull(source);
-        ArgumentNullException.ThrowIfNull(categorizationService);
+            Id = t.Id,
+            Amount = t.Amount,
+            Currency = t.Currency,
+            Description = t.Description,
+            MerchantName = t.MerchantName ?? string.Empty,
+            MccCode = t.MccCode ?? string.Empty,
+            Category = t.Category,
+            CategorySource = t.CategorySource.ToString(),
+            TransactionType = t.TransactionType.ToString(),
+            Direction = t.Direction.ToString(),
+            TransactionDate = t.TransactionDate,
+            Reference = t.Reference,
+            FromAccount = t.FromAccount,
+            ToAccount = t.ToAccount,
+            SourceName = t.Source?.Name ?? string.Empty,
+            SourceCode = t.Source?.Code ?? string.Empty,
+            CreatedAt = t.CreatedDate
+    };
 
-        var (category, categorySource) = categorizationService.Categorize(raw.MccCode, raw.Description);
-
-        return new Transaction
-        {
-            Id = Guid.NewGuid(),
-            Amount = raw.Amount,
-            Currency = string.IsNullOrWhiteSpace(raw.Currency) ? "ZAR" : raw.Currency,
-            Description = raw.Description,
-            MerchantName = string.IsNullOrWhiteSpace(raw.MerchantName) ? "Unknown Merchant" : raw.MerchantName,
-            MccCode = string.IsNullOrWhiteSpace(raw.MccCode) ? null : raw.MccCode,
-            Category = category,
-            CategorySource = categorySource,
-            TransactionType = MapTransactionType(raw.TransactionType, logger),
-            Direction = MapTransactionDirection(raw.Direction, logger),
-            TransactionDate = raw.TransactionDate,
-            Reference = raw.Reference,
-            FromAccount = string.IsNullOrWhiteSpace(raw.FromAccount) ? "Unknown" : raw.FromAccount,
-            ToAccount = string.IsNullOrWhiteSpace(raw.ToAccount) ? "Unknown" : raw.ToAccount,
-            SourceId = source.Id,
-            Source = source,
-            CreatedDate = DateTime.UtcNow,
-            LastUpdatedDate = DateTime.UtcNow
-        };
-    }
-
-    public void ApplyDefaultCategorization(Transaction transaction, ICategorizationService categorizationService)
+    public TransactionType MapTransactionType(string tType)
     {
-        ArgumentNullException.ThrowIfNull(transaction);
-        ArgumentNullException.ThrowIfNull(categorizationService);
-
-        if (string.IsNullOrWhiteSpace(transaction.Category) || string.Equals(transaction.Category, "Uncategorised", StringComparison.OrdinalIgnoreCase))
-        {
-            transaction.Category = categorizationService.CategorizeTransaction(transaction);
-        }
-
-        if (transaction.CategorySource == default || transaction.CategorySource == CategorySource.Uncategorised)
-        {
-            transaction.CategorySource = string.IsNullOrWhiteSpace(transaction.MccCode)
-                ? CategorySource.Keyword
-                : CategorySource.MccCode;
-        }
-    }
-
-    public TransactionType MapTransactionType(string rawType, ILogger logger)
-    {
-        return rawType.ToLowerInvariant() switch
+        return tType.ToLowerInvariant() switch
         {
             "CARD_SWIPE" => TransactionType.CardSwipe,
             "EFT_CREDIT" => TransactionType.EftTransfer,
@@ -66,29 +38,17 @@ public class TransactionMapper : ITransactionMapper
             "WALLET_TRANSFER" => TransactionType.EftTransfer,
             "EFT_TRANSFER" => TransactionType.EftTransfer,
             "SALARY_CREDIT" => TransactionType.SalaryCredit,
-            "ATM_WITHDRAWAL" => TransactionType.AtmWithdrawal,
-            _ => LogAndDefaultToEft(rawType, logger)
+            "ATM_WITHDtAL" => TransactionType.AtmWithdrawal,
+            _ => TransactionType.EftTransfer
         };
     }
 
-    public TransactionDirection MapTransactionDirection(string rawDirection, ILogger logger)
+    public TransactionDirection MapTransactionDirection(string tDirection)
     {
-        return rawDirection?.ToLowerInvariant() switch
+        return tDirection?.ToLowerInvariant() switch
         {
             "CREDIT" => TransactionDirection.Credit,
-            _ => LogAndDefaultToDebit(rawDirection, logger)
+            _ => TransactionDirection.Debit
         };
-    }
-
-    private static TransactionType LogAndDefaultToEft(string rawType, ILogger logger)
-    {
-        logger.LogWarning("Unrecognized transaction type '{TransactionType}' received. Defaulting to EFT transfer.", rawType);
-        return TransactionType.EftTransfer;
-    }
-
-    private static TransactionDirection LogAndDefaultToDebit(string? rawDirection, ILogger logger)
-    {
-        logger.LogWarning("Unrecognized transaction direction '{TransactionDirection}' received. Defaulting to Debit.", rawDirection ?? "<null>");
-        return TransactionDirection.Debit;
     }
 }

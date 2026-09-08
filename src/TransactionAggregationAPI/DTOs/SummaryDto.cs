@@ -24,7 +24,7 @@ public class AggregatedCategoryDto
     public DateTime LastTransactionDate { get; set; }
 }
 
-public class AggregatedTransactionDto
+public class AggregatedTransactionsDto
 {
     public List<AggregatedCategoryDto> Categories { get; set; } = new();
     public decimal GrandTotal { get; set; }

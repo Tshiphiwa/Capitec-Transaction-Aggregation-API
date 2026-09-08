@@ -68,7 +68,7 @@ try
             ValidIssuer = jwtOptions.Issuer,
             ValidateAudience = true,
             ValidateIssuerSigningKey = true,
-            IssuerSigningKeyResolver = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwtOptions.Key)),
+            IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwtOptions.Key)),
             ValidateLifetime = true,
             ClockSkew = TimeSpan.Zero
         };

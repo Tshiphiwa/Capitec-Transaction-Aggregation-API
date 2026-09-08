@@ -162,7 +162,7 @@ public class TransactionService : ITransactionService
 
         await _dbContext.SaveChangesAsync();
 
-        _logger.LogInformation("Transaction {TransactionId} category updated from {OldCategory} to {NewCategory} by user with role {UserRole}", transactionId, oldCategory, newCategory, userRole);
+        _logger.LogInformation("Transaction {TransactionId} category updated from {OldCategory} to {NewCategory}", transactionId, oldCategory, newCategory);
 
         return _transactionMapper.MapToDto(transaction);
     }

@@ -9,8 +9,8 @@ public class SummaryDto
     public decimal AverageTransactionAmount { get; set; }
     public Dictionary<string, decimal> SpendByCategory { get; set; } = new();
     public string TopSpendingCategory { get; set; } = string.Empty;
-    public DateTime FromDate { get; set; }
-    public DateTime ToDate { get; set; }
+    public DateTime? FromDate { get; set; }
+    public DateTime? ToDate { get; set; }
 }
 
 public class AggregatedCategoryDto

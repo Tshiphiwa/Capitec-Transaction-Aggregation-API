@@ -86,10 +86,10 @@ public class IngestionService : IIngestionService
             ?? [];
 
         // Load all existing references for this source in 1 query to avoid N round trips
-        var existingReferences = await _dbContext.Transactions
+        var existingReferences = (await _dbContext.Transactions
             .Where(t => t.SourceId == source.Id)
             .Select(t => t.Reference)
-            .ToHashSetAsync();
+            .ToListAsync()).ToHashSet();
 
         var ingested = 0;
         var skipped = 0;

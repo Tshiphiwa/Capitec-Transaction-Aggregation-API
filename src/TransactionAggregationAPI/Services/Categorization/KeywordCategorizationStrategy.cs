@@ -2,28 +2,28 @@ using Capitec_Transaction_Aggregation_API.Models;
 
 namespace Capitec_Transaction_Aggregation_API.Services.Categorization;
 
-public class KeywordCategorizationStrategy : ICategorizationStrategy {
-
+public class KeywordCategorizationStrategy : ICategorizationStrategy 
+{
    // Only use this keyword map if MCC code is not available or does not yield a category
-    private static readonly List<(string[] Keywords, string Category)> KeyWordMap =
+    private static readonly IReadOnlyList<(string[] Keywords, string Category)> KeyWordMap =
     [
-        (new[] { "GROCERY", "SUPERMARKET", "FOOD" }, "Groceries"),
-        (new[] { "RESTAURANT", "CAFE", "DINING" }, "Dining"),
-        (new[] { "VODACOM", "MTN", "CELL C" }, "Utilities"),
-        (new[] { "FUEL", "GAS STATION", "PETROL" }, "Fuel"),
-        (new[] { "ENTERTAINMENT", "MOVIE", "THEATER" }, "Entertainment"),
-        (new[] { "TRAVEL", "AIRLINE", "HOTEL" }, "Travel"),
-        (new[] { "HEALTHCARE", "PHARMACY", "MEDICAL" }, "Healthcare"),
-        (new[] { "ELECTRONICS", "TECHNOLOGY", "GADGET" }, "Electronics"),
-        (new[] { "CLOTHING", "APPAREL", "FASHION" }, "Clothing"),
-        (new[] { "SPORTS", "FITNESS", "GYM" }, "Sports & Fitness"),
-        (new[] { "TUITION", "SCHOOL FEES", "UNIVERSITY" }, "Education"),
-        (new[] { "SALARY", "PAYROLL", "WAGES", "BONUS", "STIPEND" }, "Income"),
-        (new[] { "EDUCATION", "SCHOOL", "UNIVERSITY" }, "Cash"),
-        (new[] { "TRANSFER", "SEND MONEY", "PAYMENT TO" }, "Transfers")
+        ([ "GROCERY", "SUPERMARKET", "FOOD" ], "Groceries"),
+        ([ "RESTAURANT", "CAFE", "DINING" ], "Dining"),
+        ([ "VODACOM", "MTN", "CELL C" ], "Utilities"),
+        ([ "FUEL", "GAS STATION", "PETROL" ], "Fuel"),
+        ([ "ENTERTAINMENT", "MOVIE", "THEATER" ], "Entertainment"),
+        ([ "TRAVEL", "AIRLINE", "HOTEL" ], "Travel"),
+        ([ "HEALTHCARE", "PHARMACY", "MEDICAL" ], "Healthcare"),
+        ([ "ELECTRONICS", "TECHNOLOGY", "GADGET" ], "Electronics"),
+        ([ "CLOTHING", "APPAREL", "FASHION" ], "Clothing"),
+        ([ "SPORTS", "FITNESS", "GYM" ], "Sports & Fitness"),
+        ([ "TUITION", "SCHOOL FEES", "UNIVERSITY" ], "Education"),
+        ([ "SALARY", "PAYROLL", "WAGES", "BONUS", "STIPEND" ], "Income"),
+        ([ "EDUCATION", "SCHOOL", "UNIVERSITY" ], "Cash"),
+        ([ "TRANSFER", "SEND MONEY", "PAYMENT TO" ], "Transfers"),
     ];
 
-    public (string Category, CategorySource Source) Categorize(string? mccCode, string? description)
+    public (string Category, CategorySource Source)? TryCategorize(string? mccCode, string? description)
     {
 
         if (string.IsNullOrWhiteSpace(description))
@@ -35,9 +35,7 @@ public class KeywordCategorizationStrategy : ICategorizationStrategy {
         foreach (var (keywords, category) in KeyWordMap)
         {
             if (keywords.Any(k => upper.Contains(k)))
-            {
                 return (category, CategorySource.Keyword);
-            }
         }
 
         return null;

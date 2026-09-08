@@ -5,9 +5,9 @@ namespace Capitec_Transaction_Aggregation_API.Services.Categorization;
 
 public class MccCategorizationStrategy : ICategorizationStrategy
 {
-    public (string category, CategorySource Source)? TryCategorize(string? mccCode, string? description)
+    public (string Category, CategorySource Source)? TryCategorize(string? mccCode, string? description)
     {
         var category = MccCategoryMap.GetCategory(mccCode);
-        return category != null ? (category, CategorySource.MccCode) : null;
+        return category != null ? (Category: category, Source: CategorySource.MccCode) : null;
     }
 }

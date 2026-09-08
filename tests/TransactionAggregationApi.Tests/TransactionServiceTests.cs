@@ -77,7 +77,7 @@ public class TransactionServiceTests
         ITransactionService service = new TransactionService(dbContext);
 
         // Act
-        var result = await service.UpdateCategoryAsync(transaction.Id, "Food", UserRole.Admin);
+        var result = await service.UpdateCategoryAsync(transaction.Id, "Food");
 
         // Assert
         Assert.Equal("Food", result.Category);
